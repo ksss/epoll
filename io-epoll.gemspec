@@ -5,7 +5,7 @@ Gem::Specification.new do |spec|
   spec.email         = ["co000ri@gmail.com"]
   spec.summary       = %q{An experimental binding of epoll(7)}
   spec.description   = %q{An experimental binding of epoll(7)}
-  spec.homepage      = ""
+  spec.homepage      = "https://github.com/ksss/io-epoll"
   spec.license       = "MIT"
 
   spec.files         = `git ls-files`.split($/)

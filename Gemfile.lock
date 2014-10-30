@@ -1,0 +1,24 @@
+PATH
+  remote: .
+  specs:
+    io-epoll (0.0.1)
+
+GEM
+  remote: https://rubygems.org/
+  specs:
+    power_assert (0.1.3)
+    rake (10.3.2)
+    rake-compiler (0.8.3)
+      rake
+    test-unit (3.0.1)
+      power_assert
+
+PLATFORMS
+  ruby
+
+DEPENDENCIES
+  bundler
+  io-epoll!
+  rake
+  rake-compiler
+  test-unit

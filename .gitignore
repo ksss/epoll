@@ -1,0 +1,7 @@
+*.gem
+*.rbc
+*.bundle
+*.so
+*.o
+tmp
+pkg

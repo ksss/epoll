@@ -19,7 +19,7 @@ IO.epoll([io1, io2, io3], Epoll::IN) do |ev|
   # IO::Epoll::Event#events is event flag bits (Fixnum)
   events = ev.events
 
-  # IO::Epoll::Event#data is notificated IO (IO)
+  # IO::Epoll::Event#data is notified IO (IO)
   data = ev.data
 end
 
@@ -34,13 +34,14 @@ evlist = IO.epoll([io1, io2, io3], Epoll::IN)
 Epoll = IO::Epoll
 
 # IO::Epoll.create
-#   run epoll_create(2)
+#   call epoll_create(2)
 #   it's just alias of `new`
-#   return: a File Descriptor
+#   Epoll object stock a File Descriptor returned by epoll_create(2)
+#   return: instance of IO::Epoll
 epoll = Epoll.create
 
 # IO::Epoll#ctl(option, io, flag)
-#   run epoll_ctl(2)
+#   call epoll_ctl(2)
 #   option: you can choice epoll_ctl option in CTL_ADD, CTL_MOD and CTL_DEL.
 #     CTL_ADD: add io list to watching for created epoll fd
 #     CTL_MOD: you can change io events
@@ -57,13 +58,34 @@ epoll.mod(io, Epoll::OUT) # same way to epoll.ctl(Epoll::CTL_MOD, io, Epoll::IN)
 epoll.del(io)             # same way to epoll.ctl(Epoll::CTL_DEL, io)
 
 # IO::Epoll#wait(timeout=-1)
-#   run epoll_wait(2)
+#   call epoll_wait(2)
 #   timeout = -1: block until receive event or signals
 #   timeout = 0: return all io's can I/O on non block
 #   timeout > 0: block when timeout pass miri second or receive events or signals
 #   return: Array of IO::Epoll::Event
 evlist = epoll.wait
+
+# you can close File Descriptor for epoll when finish to use
+epoll.close #=> nil
+
+# and you can check closed
+epoll.closed? #=> true
 ```
+
+## Event flags
+
+event flags|ctl|wait|description
+---|---|---|---
+**IO::Epoll::IN**|o|o|readable
+**IO::Epoll::PRI**|o|o|high priority read
+**IO::Epoll::HUP**|o|o|peer socket was shutdown
+**IO::Epoll::OUT**|o|o|writable
+**IO::Epoll::ET**|o|x|use edge trigger
+**IO::Epoll:ONESHOT**|o|x|auto watching stop when notified(but stay in list)
+**IO::Epoll::ERR**|x|o|raise error
+**IO::Epoll::HUP**|x|o|raise hang up
+
+see also **man epoll(7)**
 
 ## Installation
 

@@ -1,6 +1,8 @@
 io-epoll
 ===
 
+[![Build Status](https://travis-ci.org/ksss/io-epoll.svg?branch=master)](https://travis-ci.org/ksss/io-epoll)
+
 An experimental binding of epoll(7).
 
 **epoll(7)** can use Linux only. (because must be installed sys/epoll.h)
@@ -14,12 +16,18 @@ IO.epoll([io1, io2, io3], Epoll::IN) do |ev|
   # ev is IO::Epoll::Event object like `struct epoll_event`
   # it's have data and events properties
 
-  # events is event flag bits (Fixnum)
+  # IO::Epoll::Event#events is event flag bits (Fixnum)
   events = ev.events
 
-  # data is notificated IO (IO)
+  # IO::Epoll::Event#data is notificated IO (IO)
   data = ev.data
 end
+
+# or
+
+# evlist is Array of IO::Epoll::Event
+# it's just short hand for epoll_create(2) -> epoll_ctl(2) -> epoll_wait(2)
+evlist = IO.epoll([io1, io2, io3], Epoll::IN)
 
 # on other way, you can make instance of IO::Epoll
 
@@ -28,6 +36,7 @@ Epoll = IO::Epoll
 # IO::Epoll.create
 #   run epoll_create(2)
 #   it's just alias of `new`
+#   return: a File Descriptor
 epoll = Epoll.create
 
 # IO::Epoll#ctl(option, io, flag)
@@ -39,6 +48,7 @@ epoll = Epoll.create
 #   io: set an IO object for watching.
 #   flag: set flag bits like Epoll::IN|Epoll::OUT|Epoll::ONESHOT etc...
 #     see also man epoll_ctl(2)
+#   return: self
 epoll.ctl(Epoll::CTL_ADD, io, Epoll::IN)
 
 # and you can use short way
@@ -51,6 +61,7 @@ epoll.del(io)             # same way to epoll.ctl(Epoll::CTL_DEL, io)
 #   timeout = -1: block until receive event or signals
 #   timeout = 0: return all io's can I/O on non block
 #   timeout > 0: block when timeout pass miri second or receive events or signals
+#   return: Array of IO::Epoll::Event
 evlist = epoll.wait
 ```
 

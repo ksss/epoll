@@ -44,9 +44,11 @@ class IO
           end
         end
       end
-      nil
+      ep.close
     else
-      ep.wait
+      evlist = ep.wait
+      ep.close
+      evlist
     end
   end
 end

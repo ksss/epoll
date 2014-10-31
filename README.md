@@ -38,23 +38,28 @@ epoll.add(io, Epoll::IN)  # same way to epoll.ctl(Epoll::CTL_ADD, io, Epoll::IN)
 epoll.mod(io, Epoll::OUT) # same way to epoll.ctl(Epoll::CTL_MOD, io, Epoll::IN)
 epoll.del(io)             # same way to epoll.ctl(Epoll::CTL_DEL, io)
 
-# IO::Epoll#wait(timeout=-1)
-#   call epoll_wait(2)
-#   timeout = -1: block until receive event or signals
-#   timeout = 0: return all io's can I/O on non block
-#   timeout > 0: block when timeout pass miri second or receive events or signals
-#   return: Array of IO::Epoll::Event
-evlist = epoll.wait
+loop do
+  # IO::Epoll#wait(timeout=-1)
+  #   call epoll_wait(2)
+  #   timeout = -1: block until receive event or signals
+  #   timeout = 0: return all io's can I/O on non block
+  #   timeout > 0: block when timeout pass miri second or receive events or signals
+  #   return: Array of IO::Epoll::Event
+  evlist = epoll.wait
 
-evlist.each do |ev|
-  # ev is IO::Epoll::Event object like `struct epoll_event`
-  # it's have data and events properties
-
-  # IO::Epoll::Event#events is event flag bits (Fixnum)
-  events = ev.events
-
-  # IO::Epoll::Event#data is notified IO (IO)
-  data = ev.data
+  # ev is instance of IO::Epoll::Event like `struct epoll_event`
+  # it's same as `class Event < Struct.new(:data, :events); end`
+  evlist.each do |ev|
+    # IO::Epoll::Event#events is event flag bits (Fixnum)
+    if (ev.events & Epoll::IN) != 0
+      # IO::Epoll::Event#data is notified IO (IO)
+      # e.g. it's expect to I/O readable
+      puts ev.data.read
+    elsif (ev.events & Epoll::HUP|Epoll::ERR) != 0
+      ev.data.close
+      break
+    end
+  end
 end
 
 # you can close File Descriptor for epoll when finish to use

@@ -12,25 +12,6 @@ An experimental binding of epoll(7).
 ```ruby
 require 'io/epoll'
 
-IO.epoll([io1, io2, io3], Epoll::IN) do |ev|
-  # ev is IO::Epoll::Event object like `struct epoll_event`
-  # it's have data and events properties
-
-  # IO::Epoll::Event#events is event flag bits (Fixnum)
-  events = ev.events
-
-  # IO::Epoll::Event#data is notified IO (IO)
-  data = ev.data
-end
-
-# or
-
-# evlist is Array of IO::Epoll::Event
-# it's just short hand for epoll_create(2) -> epoll_ctl(2) -> epoll_wait(2)
-evlist = IO.epoll([io1, io2, io3], Epoll::IN)
-
-# on other way, you can make instance of IO::Epoll
-
 Epoll = IO::Epoll
 
 # IO::Epoll.create
@@ -64,6 +45,17 @@ epoll.del(io)             # same way to epoll.ctl(Epoll::CTL_DEL, io)
 #   timeout > 0: block when timeout pass miri second or receive events or signals
 #   return: Array of IO::Epoll::Event
 evlist = epoll.wait
+
+evlist.each do |ev|
+  # ev is IO::Epoll::Event object like `struct epoll_event`
+  # it's have data and events properties
+
+  # IO::Epoll::Event#events is event flag bits (Fixnum)
+  events = ev.events
+
+  # IO::Epoll::Event#data is notified IO (IO)
+  data = ev.data
+end
 
 # you can close File Descriptor for epoll when finish to use
 epoll.close #=> nil

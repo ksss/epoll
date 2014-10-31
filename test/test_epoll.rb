@@ -89,37 +89,6 @@ class TestIOEpoll < Test::Unit::TestCase
     assert { true == ep.closed? }
   end
 
-  def test_epoll
-    r, w = IO.pipe
-    fork {
-      r.close
-      w.write('ok')
-    }
-    w.close
-    ret = []
-    evs = IO.epoll([r], IO::Epoll::IN)
-    assert { 'ok' == evs[0].data.read }
-    assert { false == evs[0].data.closed? }
-    assert_raise(IOError) { IO.epoll(nil, nil) }
-    assert_raise(IOError) { IO.epoll([], nil) }
-    assert_raise(TypeError) { IO.epoll([nil], nil) }
-  end
-
-  def test_epoll_with_block
-    r, w = IO.pipe
-    fork {
-      r.close
-      w.write('ok')
-    }
-    w.close
-    ret = []
-    IO.epoll([r], IO::Epoll::IN) do |ev|
-      ret << ev
-      assert { 'ok' == ev.data.read }
-    end
-    assert { true == ret[0].data.closed? }
-  end
-
   def test_thread
     ep = IO::Epoll.create
     io = IO.new(1, 'w')

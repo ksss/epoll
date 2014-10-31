@@ -5,14 +5,15 @@ require_relative '../lib/io/epoll'
 class TestIOEpoll < Test::Unit::TestCase
   def test_initalize
     assert_instance_of(IO::Epoll, IO::Epoll.new);
+    assert_instance_of(IO::Epoll, IO::Epoll.create);
   end
 
   def test_fileno
-    assert { 0 < IO::Epoll.new.fileno }
+    assert { 0 < IO::Epoll.create.fileno }
   end
 
   def test_ctl
-    ep = IO::Epoll.new
+    ep = IO::Epoll.create
     io = IO.new(1, 'w')
     assert { ep == ep.ctl(IO::Epoll::CTL_ADD, io , IO::Epoll::OUT) }
     assert_raise(ArgumentError) { ep.ctl }
@@ -23,7 +24,7 @@ class TestIOEpoll < Test::Unit::TestCase
   end
 
   def test_add
-    ep = IO::Epoll.new
+    ep = IO::Epoll.create
     io = IO.new(1, 'w')
     assert_raise(IOError) { ep.add(io, 0) }
     assert { ep == ep.add(io, IO::Epoll::IN|IO::Epoll::PRI|IO::Epoll::RDHUP|IO::Epoll::ET|IO::Epoll::OUT) }
@@ -32,7 +33,7 @@ class TestIOEpoll < Test::Unit::TestCase
   end
 
   def test_mod
-    ep = IO::Epoll.new
+    ep = IO::Epoll.create
     io = IO.new(1, 'w')
     assert_raise(Errno::ENOENT) { ep.mod(io, IO::Epoll::IN) }
     ep == ep.add(io, IO::Epoll::OUT)
@@ -42,7 +43,7 @@ class TestIOEpoll < Test::Unit::TestCase
   end
 
   def test_del
-    ep = IO::Epoll.new
+    ep = IO::Epoll.create
     io = IO.new(1, 'w')
     assert_raise(Errno::ENOENT) { ep.del(io) }
     ep.add(io, IO::Epoll::OUT)
@@ -52,7 +53,7 @@ class TestIOEpoll < Test::Unit::TestCase
   end
 
   def test_wait
-    ep = IO::Epoll.new
+    ep = IO::Epoll.create
     io = IO.new(1, 'w')
     ep.add(io, IO::Epoll::IN|IO::Epoll::PRI|IO::Epoll::RDHUP|IO::Epoll::ET|IO::Epoll::OUT)
     assert { [IO::Epoll::Event.new(io, IO::Epoll::OUT)] == ep.wait }
@@ -61,7 +62,7 @@ class TestIOEpoll < Test::Unit::TestCase
   end
 
   def test_wait_with_timeout
-    ep = IO::Epoll.new
+    ep = IO::Epoll.create
     io = IO.new(1, 'w')
     ep.add(io, IO::Epoll::IN)
     assert { [] == ep.wait(0) }
@@ -72,7 +73,7 @@ class TestIOEpoll < Test::Unit::TestCase
   end
 
   def test_size
-    ep = IO::Epoll.new
+    ep = IO::Epoll.create
     io = IO.new(0, 'r')
     ep.add(io, IO::Epoll::IN)
     assert { 1 == ep.size }
@@ -81,7 +82,7 @@ class TestIOEpoll < Test::Unit::TestCase
   end
 
   def test_close_closed?
-    ep = IO::Epoll.new
+    ep = IO::Epoll.create
     assert { false == ep.closed? }
     assert { nil == ep.close }
     assert_raise(IOError){ ep.close }
@@ -120,7 +121,7 @@ class TestIOEpoll < Test::Unit::TestCase
   end
 
   def test_thread
-    ep = IO::Epoll.new
+    ep = IO::Epoll.create
     io = IO.new(1, 'w')
     ep.add(io, IO::Epoll::OUT)
     ret = nil

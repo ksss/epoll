@@ -89,6 +89,7 @@ rb_epoll_ctl(int argc, VALUE *argv, VALUE self)
   VALUE flag;
   VALUE io;
   VALUE events;
+  rb_io_t *fptr;
   int fd;
 
   switch (rb_scan_args(argc, argv, "21", &flag, &io, &events)) {
@@ -101,12 +102,15 @@ rb_epoll_ctl(int argc, VALUE *argv, VALUE self)
     if (FIX2INT(flag) != EPOLL_CTL_ADD && FIX2INT(flag) != EPOLL_CTL_MOD) {
       rb_raise(rb_eArgError, "too many argument for CTL_DEL");
     }
-    ev.events = FIX2INT(events);
+    if ((FIX2LONG(events) & (EPOLLIN|EPOLLPRI|EPOLLRDHUP|EPOLLOUT|EPOLLET|EPOLLONESHOT)) == 0)
+      rb_raise(rb_eIOError, "undefined events");
+    ev.events = FIX2LONG(events);
     ev.data.ptr = (void*)io;
     break;
   }
 
-  fd = RFILE(io)->fptr->fd;
+  GetOpenFile(rb_io_get_io(io), fptr);
+  fd = fptr->fd;
 
   if (epoll_ctl(ptr->epfd, FIX2INT(flag), fd, &ev) == -1) {
     char buf[128];
@@ -148,6 +152,7 @@ rb_epoll_wait(int argc, VALUE *argv, VALUE self)
 {
   struct Epoll *ptr = get_epoll(self);
   VALUE ready_evlist;
+  VALUE cEvent;
   VALUE event;
   struct epoll_event *evlist;
   int i, ready;
@@ -157,6 +162,9 @@ rb_epoll_wait(int argc, VALUE *argv, VALUE self)
   if (argc == 1) {
     timeout = FIX2INT(argv[0]);
   }
+  if (ptr->ev_len <= 0)
+    rb_raise(rb_eIOError, "empty interest list");
+
   evlist = ruby_xmalloc(ptr->ev_len * sizeof(struct epoll_event));
 
   data.ptr = ptr;
@@ -176,10 +184,11 @@ RETRY:
   }
 
   ready_evlist = rb_ary_new_capa(ready);
+  cEvent = rb_path2class("IO::Epoll::Event");
   for (i = 0; i < ready; i++) {
-    event = rb_obj_alloc(rb_path2class("IO::Epoll::Event"));
+    event = rb_obj_alloc(cEvent);
     RSTRUCT_SET(event, 0, (VALUE) evlist[i].data.ptr);
-    RSTRUCT_SET(event, 1, INT2FIX(evlist[i].events));
+    RSTRUCT_SET(event, 1, LONG2FIX(evlist[i].events));
     rb_ary_store(ready_evlist, i, event);
   }
   ruby_xfree(evlist);

@@ -14,17 +14,19 @@ class TestIOEpoll < Test::Unit::TestCase
   def test_ctl
     ep = IO::Epoll.new
     io = IO.new(1, 'w')
+    assert { ep == ep.ctl(IO::Epoll::CTL_ADD, io , IO::Epoll::OUT) }
     assert_raise(ArgumentError) { ep.ctl }
     assert_raise(ArgumentError) { ep.ctl(IO::Epoll::CTL_ADD) }
     assert_raise(ArgumentError) { ep.ctl(IO::Epoll::CTL_ADD, io) }
-    assert { ep == ep.ctl(IO::Epoll::CTL_ADD, io , IO::Epoll::OUT) }
     assert_raise(ArgumentError) { ep.ctl(-1, io) }
+    assert_raise(TypeError) { ep.ctl(nil, nil, nil) }
   end
 
   def test_add
     ep = IO::Epoll.new
     io = IO.new(1, 'w')
-    assert { ep == ep.add(io, IO::Epoll::OUT) }
+    assert_raise(IOError) { ep.add(io, 0) }
+    assert { ep == ep.add(io, IO::Epoll::IN|IO::Epoll::PRI|IO::Epoll::RDHUP|IO::Epoll::ET|IO::Epoll::OUT) }
     ep.close
     assert_raise(Errno::EBADF) { ep.add(io, IO::Epoll::OUT) }
   end
@@ -51,10 +53,11 @@ class TestIOEpoll < Test::Unit::TestCase
 
   def test_wait
     ep = IO::Epoll.new
-    io1 = IO.new(1, 'w')
-    io2 = IO.new(2, 'w')
-    ep.add(io1, IO::Epoll::OUT)
-    assert { [IO::Epoll::Event.new(io1, IO::Epoll::OUT)] == ep.wait }
+    io = IO.new(1, 'w')
+    ep.add(io, IO::Epoll::IN|IO::Epoll::PRI|IO::Epoll::RDHUP|IO::Epoll::ET|IO::Epoll::OUT)
+    assert { [IO::Epoll::Event.new(io, IO::Epoll::OUT)] == ep.wait }
+    assert_raise(TypeError) { ep.wait(nil) }
+    assert_raise(IOError) { IO::Epoll.create.wait }
   end
 
   def test_wait_with_timeout
@@ -96,6 +99,9 @@ class TestIOEpoll < Test::Unit::TestCase
     evs = IO.epoll([r], IO::Epoll::IN)
     assert { 'ok' == evs[0].data.read }
     assert { false == evs[0].data.closed? }
+    assert_raise(IOError) { IO.epoll(nil, nil) }
+    assert_raise(IOError) { IO.epoll([], nil) }
+    assert_raise(TypeError) { IO.epoll([nil], nil) }
   end
 
   def test_epoll_with_block

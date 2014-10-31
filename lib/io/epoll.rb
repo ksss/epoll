@@ -27,6 +27,7 @@ class IO
   end
 
   def self.epoll(ios, events)
+    ios = ios.to_a
     open_len = ios.length
     ep = Epoll.create
     ios.each do |io|

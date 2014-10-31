@@ -23,10 +23,7 @@ epoll = Epoll.create
 
 # IO::Epoll#ctl(option, io, flag)
 #   call epoll_ctl(2)
-#   option: you can choice epoll_ctl option in CTL_ADD, CTL_MOD and CTL_DEL.
-#     CTL_ADD: add io list to watching for created epoll fd
-#     CTL_MOD: you can change io events
-#     CTL_DEL: delete io in watching list
+#   option: you can choice options (see ctl options).
 #   io: set an IO object for watching.
 #   flag: set flag bits like Epoll::IN|Epoll::OUT|Epoll::ONESHOT etc...
 #     see also man epoll_ctl(2)
@@ -68,6 +65,14 @@ epoll.close #=> nil
 # and you can check closed
 epoll.closed? #=> true
 ```
+
+## ctl options
+
+event flags|description
+---|---
+**IO::Epoll::CTL_ADD**|add to interest list for created epoll fd
+**IO::Epoll::CTL_MOD**|change io events
+**IO::Epoll::CTL_DEL**|delete in interest list
 
 ## Event flags
 

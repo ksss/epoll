@@ -12,11 +12,17 @@ struct Epoll {
 };
 
 static void
+epoll_fd_close(int epfd)
+{
+  rb_thread_fd_close(epfd);
+}
+
+static void
 rb_epoll_free(void *p)
 {
   struct Epoll *ptr = p;
   if (ptr) {
-    if (0 <= ptr->epfd) close(ptr->epfd);
+    if (0 <= ptr->epfd) epoll_fd_close(ptr->epfd);
     ruby_xfree(ptr);
   }
 }
@@ -65,7 +71,7 @@ rb_epoll_initialize(VALUE self)
   int epfd;
 
   TypedData_Get_Struct(self, struct Epoll, &epoll_data_type, ptr);
-  if (ptr->epfd < 0) close(ptr->epfd);
+  if (ptr->epfd < 0) epoll_fd_close(ptr->epfd);
   epfd = epoll_create(1);
   if (epfd == -1) {
     rb_sys_fail("epoll_create was failed");
@@ -195,9 +201,7 @@ static VALUE
 rb_epoll_close(VALUE self)
 {
   struct Epoll *ptr = get_epoll(self);
-  if (close(ptr->epfd) == -1) {
-    rb_raise(rb_eIOError, "file descriptor duplicate close %ld", INT2FIX(ptr->epfd));
-  }
+  epoll_fd_close(ptr->epfd);
   ptr->epfd = -1;
   return Qnil;
 }

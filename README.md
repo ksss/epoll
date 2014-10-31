@@ -68,7 +68,7 @@ epoll.closed? #=> true
 
 ## ctl options
 
-event flags|description
+ctl options|description
 ---|---
 **IO::Epoll::CTL_ADD**|add to interest list for created epoll fd
 **IO::Epoll::CTL_MOD**|change io events

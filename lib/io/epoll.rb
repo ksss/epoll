@@ -2,9 +2,6 @@ require 'io/epoll/epoll'
 
 class IO
   class Epoll
-    class Event < Struct.new(:data, :events)
-    end
-
     class << self
       alias create new
     end

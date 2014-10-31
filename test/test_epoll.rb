@@ -56,7 +56,10 @@ class TestIOEpoll < Test::Unit::TestCase
     ep = IO::Epoll.create
     io = IO.new(1, 'w')
     ep.add(io, IO::Epoll::IN|IO::Epoll::PRI|IO::Epoll::RDHUP|IO::Epoll::ET|IO::Epoll::OUT)
-    assert { [IO::Epoll::Event.new(io, IO::Epoll::OUT)] == ep.wait }
+    evlist = ep.wait
+    assert { [IO::Epoll::Event.new(io, IO::Epoll::OUT)] == evlist }
+    assert_instance_of(IO, evlist[0].data)
+    assert_instance_of(Fixnum, evlist[0].events)
     assert_raise(TypeError) { ep.wait(nil) }
     assert_raise(IOError) { IO::Epoll.create.wait }
   end

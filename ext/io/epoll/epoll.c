@@ -4,6 +4,7 @@
 #include <sys/epoll.h>
 
 VALUE cIO_Epoll;
+VALUE cIO_Epoll_Event;
 
 struct Epoll {
   int epfd;
@@ -150,7 +151,6 @@ rb_epoll_wait(int argc, VALUE *argv, VALUE self)
 {
   struct Epoll *ptr = get_epoll(self);
   VALUE ready_evlist;
-  VALUE cEvent;
   VALUE event;
   struct epoll_event *evlist;
   int i, ready;
@@ -181,9 +181,8 @@ RETRY:
   }
 
   ready_evlist = rb_ary_new_capa(ready);
-  cEvent = rb_path2class("IO::Epoll::Event");
   for (i = 0; i < ready; i++) {
-    event = rb_obj_alloc(cEvent);
+    event = rb_obj_alloc(cIO_Epoll_Event);
     RSTRUCT_SET(event, 0, (VALUE) evlist[i].data.ptr);
     RSTRUCT_SET(event, 1, LONG2FIX(evlist[i].events));
     rb_ary_store(ready_evlist, i, event);
@@ -214,6 +213,7 @@ void
 Init_epoll()
 {
   cIO_Epoll = rb_define_class_under(rb_cIO, "Epoll", rb_cObject);
+  cIO_Epoll_Event = rb_struct_define_under(cIO_Epoll, "Event", "data", "events", NULL);
   rb_define_alloc_func(cIO_Epoll, rb_epoll_allocate);
 
   rb_define_method(cIO_Epoll, "initialize", rb_epoll_initialize, 0);

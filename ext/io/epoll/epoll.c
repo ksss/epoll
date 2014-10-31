@@ -94,14 +94,12 @@ rb_epoll_ctl(int argc, VALUE *argv, VALUE self)
 
   switch (rb_scan_args(argc, argv, "21", &flag, &io, &events)) {
   case 2:
-    if (FIX2INT(flag) != EPOLL_CTL_DEL) {
+    if (FIX2INT(flag) != EPOLL_CTL_DEL)
       rb_raise(rb_eArgError, "too few argument for CTL_ADD or CTL_MOD");
-    }
     break;
   case 3:
-    if (FIX2INT(flag) != EPOLL_CTL_ADD && FIX2INT(flag) != EPOLL_CTL_MOD) {
+    if (FIX2INT(flag) != EPOLL_CTL_ADD && FIX2INT(flag) != EPOLL_CTL_MOD)
       rb_raise(rb_eArgError, "too many argument for CTL_DEL");
-    }
     if ((FIX2LONG(events) & (EPOLLIN|EPOLLPRI|EPOLLRDHUP|EPOLLOUT|EPOLLET|EPOLLONESHOT)) == 0)
       rb_raise(rb_eIOError, "undefined events");
     ev.events = FIX2LONG(events);
@@ -159,9 +157,8 @@ rb_epoll_wait(int argc, VALUE *argv, VALUE self)
   int timeout = -1;
   struct epoll_wait_args data;
 
-  if (argc == 1) {
+  if (argc == 1)
     timeout = FIX2INT(argv[0]);
-  }
   if (ptr->ev_len <= 0)
     rb_raise(rb_eIOError, "empty interest list");
 

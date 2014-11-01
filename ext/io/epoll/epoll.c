@@ -93,6 +93,14 @@ rb_epoll_initialize(VALUE self)
   }
   ptr->epfd = epfd;
   ptr->ev_len = 0;
+
+  /**
+  * FIXME: I want to delete instance variable `evlist` !
+  * It's just only using for GC mark.
+  * So, I don't know how to GC guard io objects.
+  */
+  rb_ivar_set(self, rb_intern("evlist"), rb_ary_new());
+
   return self;
 }
 
@@ -102,6 +110,22 @@ rb_epoll_fileno(VALUE self)
   struct Epoll *ptr = get_epoll(self);
   epoll_check_closed(ptr);
   return INT2FIX(ptr->epfd);
+}
+
+inline static void
+rb_epoll_evlist_add(VALUE self, VALUE io)
+{
+   VALUE evlist = rb_ivar_get(self, rb_intern("evlist"));
+   rb_ary_push(evlist, io);
+   rb_ivar_set(self, rb_intern("evlist"), evlist);
+}
+
+inline static void
+rb_epoll_evlist_del(VALUE self, VALUE io)
+{
+  VALUE evlist = rb_ivar_get(self, rb_intern("evlist"));
+  rb_ary_delete(evlist, io);
+  rb_ivar_set(self, rb_intern("evlist"), evlist);
 }
 
 static VALUE
@@ -120,11 +144,21 @@ rb_epoll_ctl(int argc, VALUE *argv, VALUE self)
     if (FIX2INT(flag) != EPOLL_CTL_DEL)
       rb_raise(rb_eArgError, "too few argument for CTL_ADD or CTL_MOD");
     break;
+    rb_epoll_evlist_del(self, io);
   case 3:
-    if (FIX2INT(flag) != EPOLL_CTL_ADD && FIX2INT(flag) != EPOLL_CTL_MOD)
+    if (FIX2INT(flag) == EPOLL_CTL_ADD) {
+      rb_epoll_evlist_add(self, io);
+    }
+    else if (FIX2INT(flag) == EPOLL_CTL_MOD) {
+      /* nothing */
+    }
+    else {
       rb_raise(rb_eArgError, "too many argument for CTL_DEL");
+    }
+
     if ((FIX2LONG(events) & (EPOLLIN|EPOLLPRI|EPOLLRDHUP|EPOLLOUT|EPOLLET|EPOLLONESHOT)) == 0)
       rb_raise(rb_eIOError, "undefined events");
+
     ev.events = FIX2LONG(events);
     ev.data.ptr = (void*)io;
     break;
@@ -181,6 +215,7 @@ rb_epoll_wait(int argc, VALUE *argv, VALUE self)
 
   if (argc == 1)
     timeout = FIX2INT(argv[0]);
+
   if (ptr->ev_len <= 0)
     rb_raise(rb_eIOError, "empty interest list");
 

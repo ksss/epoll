@@ -17,9 +17,5 @@ class IO
     def del(io)
       ctl(CTL_DEL, io)
     end
-
-    def closed?
-      fileno < 0
-    end
   end
 end

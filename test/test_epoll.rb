@@ -9,7 +9,10 @@ class TestIOEpoll < Test::Unit::TestCase
   end
 
   def test_fileno
-    assert { 0 < IO::Epoll.create.fileno }
+    ep = IO::Epoll.create
+    assert { 0 < ep.fileno }
+    ep.close
+    assert_raise(IOError) { ep.fileno }
   end
 
   def test_ctl

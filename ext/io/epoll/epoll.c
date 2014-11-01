@@ -45,15 +45,30 @@ static const rb_data_type_t epoll_data_type = {
   NULL, NULL, RUBY_TYPED_FREE_IMMEDIATELY|RUBY_TYPED_WB_PROTECTED
 };
 
+void
+epoll_check_initialized(struct Epoll *ptr)
+{
+  if (!ptr) {
+    rb_raise(rb_eIOError, "uninitialized stream");
+  }
+}
+
+void
+epoll_check_closed(struct Epoll *ptr)
+{
+  epoll_check_initialized(ptr);
+  if (ptr->epfd < 0) {
+    rb_raise(rb_eIOError, "closed stream");
+  }
+}
+
 static struct Epoll*
 get_epoll(VALUE self)
 {
   struct Epoll *ptr;
   rb_check_frozen(self);
   TypedData_Get_Struct(self, struct Epoll, &epoll_data_type, ptr);
-  if (!ptr) {
-    rb_raise(rb_eIOError, "uninitialized stream");
-  }
+  epoll_check_initialized(ptr);
   return ptr;
 }
 
@@ -85,6 +100,7 @@ static VALUE
 rb_epoll_fileno(VALUE self)
 {
   struct Epoll *ptr = get_epoll(self);
+  epoll_check_closed(ptr);
   return INT2FIX(ptr->epfd);
 }
 
@@ -201,9 +217,17 @@ static VALUE
 rb_epoll_close(VALUE self)
 {
   struct Epoll *ptr = get_epoll(self);
+  epoll_check_closed(ptr);
   epoll_fd_close(ptr->epfd);
   ptr->epfd = -1;
   return Qnil;
+}
+
+static VALUE
+rb_epoll_closed_p(VALUE self)
+{
+  struct Epoll *ptr = get_epoll(self);
+  return 0 <= ptr->epfd ? Qfalse : Qtrue;
 }
 
 static VALUE
@@ -221,10 +245,11 @@ Init_epoll()
   rb_define_alloc_func(cIO_Epoll, rb_epoll_allocate);
 
   rb_define_method(cIO_Epoll, "initialize", rb_epoll_initialize, 0);
-  rb_define_method(cIO_Epoll, "fileno", rb_epoll_fileno, 0);
   rb_define_method(cIO_Epoll, "ctl", rb_epoll_ctl, -1);
   rb_define_method(cIO_Epoll, "wait", rb_epoll_wait, -1);
+  rb_define_method(cIO_Epoll, "fileno", rb_epoll_fileno, 0);
   rb_define_method(cIO_Epoll, "close", rb_epoll_close, 0);
+  rb_define_method(cIO_Epoll, "closed?", rb_epoll_closed_p, 0);
   rb_define_method(cIO_Epoll, "length", rb_epoll_length, 0);
   rb_define_alias(cIO_Epoll, "size", "length");
   rb_define_const(cIO_Epoll, "IN", INT2FIX(EPOLLIN));

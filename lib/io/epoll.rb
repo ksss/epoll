@@ -7,15 +7,15 @@ class IO
     end
 
     def add(io, events)
-      ctl(CTL_ADD, io, events)
+      ctl CTL_ADD, io, events
     end
 
     def mod(io, events)
-      ctl(CTL_MOD, io, events)
+      ctl CTL_MOD, io, events
     end
 
     def del(io)
-      ctl(CTL_DEL, io)
+      ctl CTL_DEL, io
     end
   end
 end

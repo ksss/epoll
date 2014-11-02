@@ -11,6 +11,11 @@ struct Epoll {
   int ev_len;
 };
 
+enum {
+  EPOLL_EVENT_DATA = 0,
+  EPOLL_EVENT_EVENTS = 1
+};
+
 static void
 epoll_fd_close(int epfd)
 {
@@ -115,9 +120,9 @@ rb_epoll_fileno(VALUE self)
 inline static void
 rb_epoll_evlist_add(VALUE self, VALUE io)
 {
-   VALUE evlist = rb_ivar_get(self, rb_intern("evlist"));
-   rb_ary_push(evlist, io);
-   rb_ivar_set(self, rb_intern("evlist"), evlist);
+  VALUE evlist = rb_ivar_get(self, rb_intern("evlist"));
+  rb_ary_push(evlist, io);
+  rb_ivar_set(self, rb_intern("evlist"), evlist);
 }
 
 inline static void
@@ -206,15 +211,23 @@ static VALUE
 rb_epoll_wait(int argc, VALUE *argv, VALUE self)
 {
   struct Epoll *ptr = get_epoll(self);
+  struct epoll_event *evlist;
+  struct epoll_wait_args data;
+  int i, ready, timeout;
   VALUE ready_evlist;
   VALUE event;
-  struct epoll_event *evlist;
-  int i, ready;
-  int timeout = -1;
-  struct epoll_wait_args data;
 
-  if (argc == 1)
+  switch (argc) {
+  case 0:
+    timeout = -1;
+    break;
+  case 1:
     timeout = FIX2INT(argv[0]);
+    break;
+  default:
+    rb_raise(rb_eArgError, "too many argument");
+    break;
+  }
 
   if (ptr->ev_len <= 0)
     rb_raise(rb_eIOError, "empty interest list");
@@ -240,8 +253,8 @@ RETRY:
   ready_evlist = rb_ary_new_capa(ready);
   for (i = 0; i < ready; i++) {
     event = rb_obj_alloc(cIO_Epoll_Event);
-    RSTRUCT_SET(event, 0, (VALUE) evlist[i].data.ptr);
-    RSTRUCT_SET(event, 1, LONG2FIX(evlist[i].events));
+    RSTRUCT_SET(event, EPOLL_EVENT_DATA, (VALUE) evlist[i].data.ptr);
+    RSTRUCT_SET(event, EPOLL_EVENT_EVENTS, LONG2FIX(evlist[i].events));
     rb_ary_store(ready_evlist, i, event);
   }
   ruby_xfree(evlist);
@@ -266,7 +279,7 @@ rb_epoll_closed_p(VALUE self)
 }
 
 static VALUE
-rb_epoll_length(VALUE self)
+rb_epoll_size(VALUE self)
 {
   struct Epoll *ptr = get_epoll(self);
   return INT2FIX(ptr->ev_len);
@@ -285,8 +298,8 @@ Init_epoll()
   rb_define_method(cIO_Epoll, "fileno", rb_epoll_fileno, 0);
   rb_define_method(cIO_Epoll, "close", rb_epoll_close, 0);
   rb_define_method(cIO_Epoll, "closed?", rb_epoll_closed_p, 0);
-  rb_define_method(cIO_Epoll, "length", rb_epoll_length, 0);
-  rb_define_alias(cIO_Epoll, "size", "length");
+  rb_define_method(cIO_Epoll, "size", rb_epoll_size, 0);
+  rb_define_alias(cIO_Epoll, "length", "size");
   rb_define_const(cIO_Epoll, "IN", INT2FIX(EPOLLIN));
   rb_define_const(cIO_Epoll, "PRI", INT2FIX(EPOLLPRI));
   rb_define_const(cIO_Epoll, "RDHUP", INT2FIX(EPOLLRDHUP));

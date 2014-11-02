@@ -92,7 +92,7 @@ rb_epoll_initialize(VALUE self)
 
   TypedData_Get_Struct(self, struct Epoll, &epoll_data_type, ptr);
   if (ptr->epfd < 0) epoll_fd_close(ptr->epfd);
-  epfd = epoll_create(1);
+  epfd = epoll_create(1024);
   if (epfd == -1) {
     rb_sys_fail("epoll_create was failed");
   }

@@ -12,6 +12,7 @@ An experimental binding of epoll(7).
 ```ruby
 require 'io/epoll'
 
+# Recommend short hand
 Epoll = IO::Epoll
 
 # IO::Epoll.create

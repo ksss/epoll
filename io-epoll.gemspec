@@ -1,6 +1,6 @@
 Gem::Specification.new do |spec|
   spec.name          = "io-epoll"
-  spec.version       = "0.0.2"
+  spec.version       = "0.1.0"
   spec.authors       = ["ksss"]
   spec.email         = ["co000ri@gmail.com"]
   spec.summary       = %q{An experimental binding of epoll(7)}

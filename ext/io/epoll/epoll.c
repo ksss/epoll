@@ -3,7 +3,7 @@
 #include "ruby/thread.h"
 #include <sys/epoll.h>
 
-#define MAX_EVENTS 256
+#define EPOLL_WAIT_MAX_EVENTS 256
 
 VALUE cIO_Epoll;
 VALUE cIO_Epoll_Event;
@@ -214,7 +214,7 @@ static VALUE
 rb_epoll_wait(int argc, VALUE *argv, VALUE self)
 {
   struct Epoll *ptr = get_epoll(self);
-  struct epoll_event evlist[MAX_EVENTS];
+  struct epoll_event evlist[EPOLL_WAIT_MAX_EVENTS];
   struct epoll_wait_args data;
   int i, ready, timeout;
   VALUE ready_evlist;
@@ -237,7 +237,7 @@ rb_epoll_wait(int argc, VALUE *argv, VALUE self)
 
   data.ptr = ptr;
   data.evlist = evlist;
-  data.ev_len = MAX_EVENTS < ptr->ev_len ? MAX_EVENTS : ptr->ev_len;
+  data.ev_len = EPOLL_WAIT_MAX_EVENTS < ptr->ev_len ? EPOLL_WAIT_MAX_EVENTS : ptr->ev_len;
   data.timeout = timeout;
 
 RETRY:

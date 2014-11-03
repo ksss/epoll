@@ -94,7 +94,7 @@ rb_epoll_initialize(VALUE self)
   if (ptr->epfd < 0) epoll_fd_close(ptr->epfd);
   epfd = epoll_create(1024);
   if (epfd == -1) {
-    rb_sys_fail("epoll_create was failed");
+    rb_sys_fail("epoll_create() was failed");
   }
   ptr->epfd = epfd;
   ptr->ev_len = 0;

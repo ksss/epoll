@@ -3,6 +3,8 @@
 #include "ruby/thread.h"
 #include <sys/epoll.h>
 
+#define MAX_EVENTS 256
+
 VALUE cIO_Epoll;
 VALUE cIO_Epoll_Event;
 
@@ -197,6 +199,7 @@ rb_epoll_ctl(int argc, VALUE *argv, VALUE self)
 struct epoll_wait_args {
   struct Epoll *ptr;
   struct epoll_event *evlist;
+  int ev_len;
   int timeout;
 };
 
@@ -204,14 +207,14 @@ static void *
 rb_epoll_wait_func(void *ptr)
 {
   const struct epoll_wait_args *data = ptr;
-  return (void*)(long)epoll_wait(data->ptr->epfd, data->evlist, data->ptr->ev_len, data->timeout);
+  return (void*)(long)epoll_wait(data->ptr->epfd, data->evlist, data->ev_len, data->timeout);
 }
 
 static VALUE
 rb_epoll_wait(int argc, VALUE *argv, VALUE self)
 {
   struct Epoll *ptr = get_epoll(self);
-  struct epoll_event *evlist;
+  struct epoll_event evlist[MAX_EVENTS];
   struct epoll_wait_args data;
   int i, ready, timeout;
   VALUE ready_evlist;
@@ -232,10 +235,9 @@ rb_epoll_wait(int argc, VALUE *argv, VALUE self)
   if (ptr->ev_len <= 0)
     rb_raise(rb_eIOError, "empty interest list");
 
-  evlist = ruby_xmalloc(ptr->ev_len * sizeof(struct epoll_event));
-
   data.ptr = ptr;
   data.evlist = evlist;
+  data.ev_len = MAX_EVENTS < ptr->ev_len ? MAX_EVENTS : ptr->ev_len;
   data.timeout = timeout;
 
 RETRY:
@@ -245,7 +247,6 @@ RETRY:
       goto RETRY;
     }
     else {
-      ruby_xfree(evlist);
       rb_sys_fail("epoll_wait() was failed");
     }
   }
@@ -257,7 +258,6 @@ RETRY:
     RSTRUCT_SET(event, EPOLL_EVENT_EVENTS, LONG2FIX(evlist[i].events));
     rb_ary_store(ready_evlist, i, event);
   }
-  ruby_xfree(evlist);
   return ready_evlist;
 }
 

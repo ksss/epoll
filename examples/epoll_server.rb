@@ -4,6 +4,7 @@ require 'io/epoll'
 require 'socket'
 
 server = TCPServer.open(4000)
+puts "run http://127.0.0.1:4000/"
 
 response = [
   "HTTP/1.0 200 OK\r\n",
@@ -44,4 +45,3 @@ loop do
     end
   end
 end
-

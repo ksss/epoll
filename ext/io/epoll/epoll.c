@@ -112,6 +112,25 @@ rb_epoll_initialize(VALUE self)
 }
 
 static VALUE
+rb_epoll_initialize_copy(VALUE copy, VALUE orig)
+{
+  struct Epoll *orig_ptr = get_epoll(orig);
+  struct Epoll *copy_ptr;
+  int epfd;
+
+  if (!OBJ_INIT_COPY(copy, orig)) return copy;
+
+  TypedData_Get_Struct(copy, struct Epoll, &epoll_data_type, copy_ptr);
+  epfd = dup(orig_ptr->epfd);
+  if (epfd == -1)
+    rb_sys_fail("dup() was failed");
+  copy_ptr->epfd = epfd;
+  copy_ptr->ev_len = orig_ptr->ev_len;
+  rb_ivar_set(copy, rb_intern("evlist"), rb_ivar_get(orig, rb_intern("evlist")));
+  return copy;
+}
+
+static VALUE
 rb_epoll_fileno(VALUE self)
 {
   struct Epoll *ptr = get_epoll(self);
@@ -293,6 +312,7 @@ Init_epoll()
   rb_define_alloc_func(cIO_Epoll, rb_epoll_allocate);
 
   rb_define_method(cIO_Epoll, "initialize", rb_epoll_initialize, 0);
+  rb_define_method(cIO_Epoll, "initialize_copy", rb_epoll_initialize_copy, 1);
   rb_define_method(cIO_Epoll, "ctl", rb_epoll_ctl, -1);
   rb_define_method(cIO_Epoll, "wait", rb_epoll_wait, -1);
   rb_define_method(cIO_Epoll, "fileno", rb_epoll_fileno, 0);

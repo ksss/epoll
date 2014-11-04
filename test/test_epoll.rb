@@ -95,6 +95,17 @@ class TestIOEpoll < Test::Unit::TestCase
     assert { true == ep.closed? }
   end
 
+  def test_dup
+    ep = IO::Epoll.create
+    io = IO.new(1, 'w')
+    ep.add(io, IO::Epoll::OUT)
+    dup = ep.dup
+    assert { ep != dup }
+    assert { ep.fileno != dup.fileno }
+    assert { ep.size == dup.size }
+    assert { [IO::Epoll::Event.new(io, IO::Epoll::OUT)] == dup.wait }
+  end
+
   def test_thread
     ep = IO::Epoll.create
     io = IO.new(1, 'w')

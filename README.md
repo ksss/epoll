@@ -65,6 +65,13 @@ epoll.close #=> nil
 
 # and you can check closed
 epoll.closed? #=> true
+
+# and very useful way is that call `create` with block like Ruby IO object
+# return: block result
+Epoll.create do |epoll|
+  # create or new with block,
+  # ensure call `epoll.close` when out block
+end
 ```
 
 ## ctl options

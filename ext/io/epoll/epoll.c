@@ -21,10 +21,10 @@ enum {
   EPOLL_EVENT_EVENTS = 1
 };
 
-static void
+inline static void
 epoll_fd_close(int epfd)
 {
-  rb_thread_fd_close(epfd);
+  close(epfd);
 }
 
 static void

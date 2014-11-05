@@ -1,6 +1,9 @@
 #include "ruby.h"
 #include "ruby/io.h"
 #include "ruby/thread.h"
+
+#ifdef HAVE_SYS_EPOLL_H
+
 #include <sys/epoll.h>
 
 #define EPOLL_WAIT_MAX_EVENTS 256
@@ -304,9 +307,12 @@ rb_epoll_size(VALUE self)
   return INT2FIX(ptr->ev_len);
 }
 
+#endif // HAVE_SYS_EPOLL_H
+
 void
 Init_epoll()
 {
+#ifdef HAVE_SYS_EPOLL_H
   cIO_Epoll = rb_define_class_under(rb_cIO, "Epoll", rb_cObject);
   cIO_Epoll_Event = rb_struct_define_under(cIO_Epoll, "Event", "data", "events", NULL);
   rb_define_alloc_func(cIO_Epoll, rb_epoll_allocate);
@@ -331,4 +337,5 @@ Init_epoll()
   rb_define_const(cIO_Epoll, "CTL_ADD", INT2FIX(EPOLL_CTL_ADD));
   rb_define_const(cIO_Epoll, "CTL_MOD", INT2FIX(EPOLL_CTL_MOD));
   rb_define_const(cIO_Epoll, "CTL_DEL", INT2FIX(EPOLL_CTL_DEL));
+#endif
 }

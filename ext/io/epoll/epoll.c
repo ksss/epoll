@@ -90,6 +90,36 @@ rb_epoll_allocate(VALUE klass)
 }
 
 static VALUE
+rb_epoll_close(VALUE self)
+{
+  struct Epoll *ptr = get_epoll(self);
+  epoll_check_closed(ptr);
+  epoll_fd_close(ptr->epfd);
+  ptr->epfd = -1;
+  return Qnil;
+}
+
+static VALUE
+ensure_epoll_close(VALUE ep)
+{
+  VALUE closed = rb_check_funcall(ep, rb_intern("closed?"), 0, 0);
+  if (closed != Qundef && RTEST(closed)) return ep;
+  rb_epoll_close(ep);
+  return ep;
+}
+
+static VALUE
+rb_epoll_s_new(VALUE klass)
+{
+  VALUE ep = rb_class_new_instance(0, NULL, klass);
+
+  if (rb_block_given_p()) {
+    return rb_ensure(rb_yield, ep, ensure_epoll_close, ep);
+  }
+  return ep;
+}
+
+static VALUE
 rb_epoll_initialize(VALUE self)
 {
   struct Epoll *ptr;
@@ -284,16 +314,6 @@ RETRY:
 }
 
 static VALUE
-rb_epoll_close(VALUE self)
-{
-  struct Epoll *ptr = get_epoll(self);
-  epoll_check_closed(ptr);
-  epoll_fd_close(ptr->epfd);
-  ptr->epfd = -1;
-  return Qnil;
-}
-
-static VALUE
 rb_epoll_closed_p(VALUE self)
 {
   struct Epoll *ptr = get_epoll(self);
@@ -317,6 +337,7 @@ Init_epoll()
   cIO_Epoll_Event = rb_struct_define_under(cIO_Epoll, "Event", "data", "events", NULL);
   rb_define_alloc_func(cIO_Epoll, rb_epoll_allocate);
 
+  rb_define_singleton_method(cIO_Epoll, "new", rb_epoll_s_new, 0);
   rb_define_method(cIO_Epoll, "initialize", rb_epoll_initialize, 0);
   rb_define_method(cIO_Epoll, "initialize_copy", rb_epoll_initialize_copy, 1);
   rb_define_method(cIO_Epoll, "ctl", rb_epoll_ctl, -1);

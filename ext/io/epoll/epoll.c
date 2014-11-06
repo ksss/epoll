@@ -358,6 +358,7 @@ rb_epoll_close_on_exec_p(VALUE self)
 {
   struct Epoll *ptr = get_epoll(self);
   int ret;
+
   epoll_check_closed(ptr);
 
   if ((ret = fcntl(ptr->epfd, F_GETFD)) == -1)
@@ -370,7 +371,7 @@ rb_epoll_close_on_exec_p(VALUE self)
 }
 
 #else
-#  define rb_epoll_close_on_exec_p rb_f_notimplement
+#define rb_epoll_close_on_exec_p rb_f_notimplement
 #endif
 
 #if defined(HAVE_FCNTL) && defined(F_GETFD) && defined(F_SETFD) && defined(FD_CLOEXEC)
@@ -389,15 +390,14 @@ rb_epoll_set_close_on_exec(VALUE self, VALUE b)
 
   if ((ret & FD_CLOEXEC) != flag) {
     ret = (ret & ~FD_CLOEXEC) | flag;
-    ret = fcntl(ptr->epfd, F_SETFD, ret);
-    if (ret == -1)
+    if (fcntl(ptr->epfd, F_SETFD, ret) == -1)
       rb_sys_fail("fcntl");
   }
   return Qnil;
 }
 
 #else
-#  define rb_epoll_set_close_on_exec rb_f_notimplement
+#define rb_epoll_set_close_on_exec rb_f_notimplement
 #endif
 
 #endif // HAVE_SYS_EPOLL_H

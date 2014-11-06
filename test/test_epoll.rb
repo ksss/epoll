@@ -37,6 +37,15 @@ class TestIOEpoll < Test::Unit::TestCase
     end
   end
 
+  def test_inspect
+    IO::Epoll.create do |ep|
+      fd = ep.fileno
+      assert { "#<IO::Epoll:fd #{fd}>" == ep.inspect }
+      ep.close
+      assert { "#<IO::Epoll: (closed)>" == ep.inspect }
+    end
+  end
+
   def test_fileno
     ep = IO::Epoll.create
     assert { 0 < ep.fileno }

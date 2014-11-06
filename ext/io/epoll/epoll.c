@@ -164,6 +164,23 @@ rb_epoll_initialize_copy(VALUE copy, VALUE orig)
 }
 
 static VALUE
+rb_epoll_inspect(VALUE self)
+{
+  struct Epoll *ptr = get_epoll(self);
+  VALUE result;
+
+  if (!ptr) return rb_any_to_s(self);
+  result = rb_str_new_cstr("#<");
+  rb_str_append(result, rb_class_name(CLASS_OF(self)));
+  rb_str_cat2(result, ":");
+  if (ptr->epfd < 0)
+    rb_str_cat(result, " (closed)", 9);
+  else
+    rb_str_catf(result, "fd %d", ptr->epfd);
+  return rb_str_cat2(result, ">");
+}
+
+static VALUE
 rb_epoll_fileno(VALUE self)
 {
   struct Epoll *ptr = get_epoll(self);
@@ -340,6 +357,7 @@ Init_epoll()
   rb_define_singleton_method(cIO_Epoll, "new", rb_epoll_s_new, 0);
   rb_define_method(cIO_Epoll, "initialize", rb_epoll_initialize, 0);
   rb_define_method(cIO_Epoll, "initialize_copy", rb_epoll_initialize_copy, 1);
+  rb_define_method(cIO_Epoll, "inspect", rb_epoll_inspect, 0);
   rb_define_method(cIO_Epoll, "ctl", rb_epoll_ctl, -1);
   rb_define_method(cIO_Epoll, "wait", rb_epoll_wait, -1);
   rb_define_method(cIO_Epoll, "fileno", rb_epoll_fileno, 0);

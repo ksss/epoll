@@ -5,6 +5,7 @@
 #ifdef HAVE_SYS_EPOLL_H
 
 #include <sys/epoll.h>
+#include <fcntl.h>
 
 #define EPOLL_WAIT_MAX_EVENTS 256
 
@@ -127,7 +128,13 @@ rb_epoll_initialize(VALUE self)
 
   TypedData_Get_Struct(self, struct Epoll, &epoll_data_type, ptr);
   if (ptr->epfd < 0) epoll_fd_close(ptr->epfd);
+
+#ifdef HAVE_EPOLL_CREATE1
+  epfd = epoll_create1(EPOLL_CLOEXEC);
+#else
   epfd = epoll_create(1024);
+#endif
+
   if (epfd == -1) {
     rb_sys_fail("epoll_create() was failed");
   }
@@ -344,6 +351,55 @@ rb_epoll_size(VALUE self)
   return INT2FIX(ptr->ev_len);
 }
 
+#if defined(HAVE_FCNTL) && defined(F_GETFD) && defined(FD_CLOEXEC)
+
+static VALUE
+rb_epoll_close_on_exec_p(VALUE self)
+{
+  struct Epoll *ptr = get_epoll(self);
+  int ret;
+  epoll_check_closed(ptr);
+
+  if ((ret = fcntl(ptr->epfd, F_GETFD)) == -1)
+    rb_sys_fail("fcntl");
+
+  if (ret & FD_CLOEXEC)
+    return Qtrue;
+  else
+    return Qfalse;
+}
+
+#else
+#  define rb_epoll_close_on_exec_p rb_f_notimplement
+#endif
+
+#if defined(HAVE_FCNTL) && defined(F_GETFD) && defined(F_SETFD) && defined(FD_CLOEXEC)
+
+static VALUE
+rb_epoll_set_close_on_exec(VALUE self, VALUE b)
+{
+  struct Epoll *ptr = get_epoll(self);
+  int flag = RTEST(b) ? FD_CLOEXEC : 0;
+  int ret;
+
+  epoll_check_closed(ptr);
+
+  if ((ret = fcntl(ptr->epfd, F_GETFD)) == -1)
+    rb_sys_fail("fcntl");
+
+  if ((ret & FD_CLOEXEC) != flag) {
+    ret = (ret & ~FD_CLOEXEC) | flag;
+    ret = fcntl(ptr->epfd, F_SETFD, ret);
+    if (ret == -1)
+      rb_sys_fail("fcntl");
+  }
+  return Qnil;
+}
+
+#else
+#  define rb_epoll_set_close_on_exec rb_f_notimplement
+#endif
+
 #endif // HAVE_SYS_EPOLL_H
 
 void
@@ -365,6 +421,9 @@ Init_epoll()
   rb_define_method(cIO_Epoll, "closed?", rb_epoll_closed_p, 0);
   rb_define_method(cIO_Epoll, "size", rb_epoll_size, 0);
   rb_define_alias(cIO_Epoll, "length", "size");
+  rb_define_method(cIO_Epoll, "close_on_exec?", rb_epoll_close_on_exec_p, 0);
+  rb_define_method(cIO_Epoll, "close_on_exec=", rb_epoll_set_close_on_exec, 1);
+
   rb_define_const(cIO_Epoll, "IN", INT2FIX(EPOLLIN));
   rb_define_const(cIO_Epoll, "PRI", INT2FIX(EPOLLPRI));
   rb_define_const(cIO_Epoll, "RDHUP", INT2FIX(EPOLLRDHUP));

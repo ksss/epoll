@@ -164,6 +164,22 @@ class TestIOEpoll < Test::Unit::TestCase
     end
   end
 
+  def test_close_on_exec
+    return unless defined? Fcntl::FD_CLOEXEC
+    IO::Epoll.create do |ep|
+      assert { true == ep.close_on_exec? }
+      ep.close_on_exec = false
+      assert { false == ep.close_on_exec? }
+      ep.close_on_exec = true
+      assert { true == ep.close_on_exec? }
+      ep.close_on_exec = false
+      assert { false == ep.close_on_exec? }
+      ep.close
+      assert_raise { ep.close_on_exec = true }
+      assert_raise { ep.close_on_exec? }
+    end
+  end
+
   def test_thread
     IO::Epoll.create do |ep|
       io = IO.new(1, 'w')

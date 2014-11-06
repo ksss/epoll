@@ -2,6 +2,8 @@ require 'io/epoll/epoll'
 
 class IO
   class Epoll
+    include Epoll::Constants
+
     class << self
       alias create new
     end

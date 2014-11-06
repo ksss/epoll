@@ -129,7 +129,7 @@ rb_epoll_initialize(VALUE self)
   TypedData_Get_Struct(self, struct Epoll, &epoll_data_type, ptr);
   if (ptr->epfd < 0) epoll_fd_close(ptr->epfd);
 
-#ifdef HAVE_EPOLL_CREATE1
+#if defined(HAVE_EPOLL_CREATE1) && defined(EPOLL_CLOEXEC)
   epfd = epoll_create1(EPOLL_CLOEXEC);
 #else
   epfd = epoll_create(1024);

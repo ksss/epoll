@@ -1,10 +1,10 @@
 Gem::Specification.new do |spec|
   spec.name          = "io-epoll"
-  spec.version       = "0.1.0"
+  spec.version       = "0.2.0"
   spec.authors       = ["ksss"]
   spec.email         = ["co000ri@gmail.com"]
-  spec.summary       = %q{An experimental binding of epoll(7)}
-  spec.description   = %q{An experimental binding of epoll(7)}
+  spec.summary       = %q{A Ruby binding for epoll(7)}
+  spec.description   = %q{A Ruby binding for epoll(7)}
   spec.homepage      = "https://github.com/ksss/io-epoll"
   spec.license       = "MIT"
 

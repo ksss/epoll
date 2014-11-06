@@ -409,9 +409,6 @@ Init_epoll()
 #ifdef HAVE_SYS_EPOLL_H
   cIO_Epoll = rb_define_class_under(rb_cIO, "Epoll", rb_cObject);
   rb_define_alloc_func(cIO_Epoll, rb_epoll_allocate);
-  cIO_Epoll_Constants = rb_define_module_under(cIO_Epoll, "Constants");
-  cIO_Epoll_Event = rb_struct_define_under(cIO_Epoll, "Event", "data", "events", NULL);
-
   rb_define_singleton_method(cIO_Epoll, "new", rb_epoll_s_new, 0);
   rb_define_method(cIO_Epoll, "initialize", rb_epoll_initialize, 0);
   rb_define_method(cIO_Epoll, "initialize_copy", rb_epoll_initialize_copy, 1);
@@ -425,6 +422,7 @@ Init_epoll()
   rb_define_method(cIO_Epoll, "close_on_exec?", rb_epoll_close_on_exec_p, 0);
   rb_define_method(cIO_Epoll, "close_on_exec=", rb_epoll_set_close_on_exec, 1);
 
+  cIO_Epoll_Constants = rb_define_module_under(cIO_Epoll, "Constants");
   rb_define_const(cIO_Epoll_Constants, "IN", INT2FIX(EPOLLIN));
   rb_define_const(cIO_Epoll_Constants, "PRI", INT2FIX(EPOLLPRI));
   rb_define_const(cIO_Epoll_Constants, "RDHUP", INT2FIX(EPOLLRDHUP));
@@ -436,5 +434,7 @@ Init_epoll()
   rb_define_const(cIO_Epoll_Constants, "CTL_ADD", INT2FIX(EPOLL_CTL_ADD));
   rb_define_const(cIO_Epoll_Constants, "CTL_MOD", INT2FIX(EPOLL_CTL_MOD));
   rb_define_const(cIO_Epoll_Constants, "CTL_DEL", INT2FIX(EPOLL_CTL_DEL));
+
+  cIO_Epoll_Event = rb_struct_define_under(cIO_Epoll, "Event", "data", "events", NULL);
 #endif
 }

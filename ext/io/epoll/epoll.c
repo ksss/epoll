@@ -420,7 +420,6 @@ Init_epoll()
   rb_define_method(cIO_Epoll, "close", rb_epoll_close, 0);
   rb_define_method(cIO_Epoll, "closed?", rb_epoll_closed_p, 0);
   rb_define_method(cIO_Epoll, "size", rb_epoll_size, 0);
-  rb_define_alias(cIO_Epoll, "length", "size");
   rb_define_method(cIO_Epoll, "close_on_exec?", rb_epoll_close_on_exec_p, 0);
   rb_define_method(cIO_Epoll, "close_on_exec=", rb_epoll_set_close_on_exec, 1);
 

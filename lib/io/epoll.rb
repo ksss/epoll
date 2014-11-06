@@ -6,6 +6,8 @@ class IO
       alias create new
     end
 
+    alias length size
+
     def add(io, events)
       ctl CTL_ADD, io, events
     end

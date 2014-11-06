@@ -16,24 +16,28 @@ require 'io/epoll'
 Epoll = IO::Epoll
 
 # IO::Epoll.create
-#   call epoll_create(2)
+#   call epoll\_create(2)
 #   it's just alias of `new`
-#   Epoll object stock a File Descriptor returned by epoll_create(2)
+#   Epoll object stock a File Descriptor returned by epoll\_create(2)
 #   return: instance of IO::Epoll
 epoll = Epoll.create
 
 # IO::Epoll#ctl(option, io, flag)
-#   call epoll_ctl(2)
+#   call epoll\_ctl(2)
 #   option: you can choice options (see ctl options).
 #   io: set an IO object for watching.
 #   flag: set flag bits like Epoll::IN|Epoll::OUT|Epoll::ONESHOT etc...
-#     see also man epoll_ctl(2)
+#     see also man epoll\_ctl(2)
 #   return: self
 epoll.ctl(Epoll::CTL_ADD, io, Epoll::IN)
 
 # and you can use short way
+
+# IO object add to interest list
 epoll.add(io, Epoll::IN)  # same way to epoll.ctl(Epoll::CTL_ADD, io, Epoll::IN)
+# change waiting events
 epoll.mod(io, Epoll::OUT) # same way to epoll.ctl(Epoll::CTL_MOD, io, Epoll::IN)
+# remove from interest list
 epoll.del(io)             # same way to epoll.ctl(Epoll::CTL_DEL, io)
 
 loop do
@@ -46,7 +50,7 @@ loop do
   evlist = epoll.wait
 
   # ev is instance of IO::Epoll::Event like `struct epoll_event`
-  # it's same as `class Event < Struct.new(:data, :events); end`
+  # it's instance of `class IO::Epoll::Event < Struct.new(:data, :events); end`
   evlist.each do |ev|
     # IO::Epoll::Event#events is event flag bits (Fixnum)
     if (ev.events & Epoll::IN) != 0
@@ -66,11 +70,10 @@ epoll.close #=> nil
 # and you can check closed
 epoll.closed? #=> true
 
-# and very useful way is that call `create` with block like Ruby IO object
+# and very useful way is that call `create` (or `new`) with block like Ruby IO.open
 # return: block result
 Epoll.create do |epoll|
-  # create or new with block,
-  # ensure call `epoll.close` when out block
+  # ensure automatic call `epoll.close` when out block
 end
 ```
 
@@ -113,7 +116,7 @@ Or install it yourself as:
 
 # Pro Tips
 
-- Support call with GVL in CRuby (use rb\_thread\_call\_without\_gvl())
+- Support call without GVL in CRuby (use rb\_thread\_call\_without\_gvl())
 - Close on exec flag set by default if you can use (use epoll_create1(EPOLL_CLOEXEC))
 - IO::Epoll#wait max return array size is 256 on one time (of course, overflowing and then carried next)
 

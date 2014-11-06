@@ -16,18 +16,18 @@ require 'io/epoll'
 Epoll = IO::Epoll
 
 # IO::Epoll.create
-#   call epoll\_create(2)
+#   call epoll_create(2)
 #   it's just alias of `new`
-#   Epoll object stock a File Descriptor returned by epoll\_create(2)
+#   Epoll object stock a File Descriptor returned by epoll_create(2)
 #   return: instance of IO::Epoll
 epoll = Epoll.create
 
 # IO::Epoll#ctl(option, io, flag)
-#   call epoll\_ctl(2)
+#   call epoll_ctl(2)
 #   option: you can choice options (see ctl options).
 #   io: set an IO object for watching.
 #   flag: set flag bits like Epoll::IN|Epoll::OUT|Epoll::ONESHOT etc...
-#     see also man epoll\_ctl(2)
+#     see also man epoll_ctl(2)
 #   return: self
 epoll.ctl(Epoll::CTL_ADD, io, Epoll::IN)
 
@@ -35,8 +35,10 @@ epoll.ctl(Epoll::CTL_ADD, io, Epoll::IN)
 
 # IO object add to interest list
 epoll.add(io, Epoll::IN)  # same way to epoll.ctl(Epoll::CTL_ADD, io, Epoll::IN)
+
 # change waiting events
-epoll.mod(io, Epoll::OUT) # same way to epoll.ctl(Epoll::CTL_MOD, io, Epoll::IN)
+epoll.mod(io, Epoll::OUT) # same way to epoll.ctl(Epoll::CTL_MOD, io, Epoll::OUT)
+
 # remove from interest list
 epoll.del(io)             # same way to epoll.ctl(Epoll::CTL_DEL, io)
 
@@ -94,7 +96,7 @@ event flags|ctl|wait|description
 **IO::Epoll::HUP**|o|o|peer socket was shutdown
 **IO::Epoll::OUT**|o|o|writable
 **IO::Epoll::ET**|o|x|use edge trigger
-**IO::Epoll:ONESHOT**|o|x|auto watching stop when notified(but stay in list)
+**IO::Epoll::ONESHOT**|o|x|auto watching stop when notified(but stay in list)
 **IO::Epoll::ERR**|x|o|raise error
 **IO::Epoll::HUP**|x|o|raise hang up
 

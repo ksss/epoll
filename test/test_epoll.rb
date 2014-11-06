@@ -129,7 +129,22 @@ class TestIOEpoll < Test::Unit::TestCase
     end
   end
 
-  def test_close_closed?
+  def test_close
+    assert_nothing_raised do
+      fileno = nil
+      10.times do
+        ep = IO::Epoll.create
+        fileno = ep.fileno unless fileno
+        assert { fileno == ep.fileno }
+        ep.close
+
+        IO::Epoll.create do
+        end
+      end
+    end
+  end
+
+  def test_closed?
     ep = IO::Epoll.create
     assert { false == ep.closed? }
     assert { nil == ep.close }

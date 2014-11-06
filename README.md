@@ -111,7 +111,13 @@ Or install it yourself as:
 
     $ gem install io-epoll
 
-# Fork me !
+# Pro Tips
+
+- Support call with GVL in CRuby (use rb\_thread\_call\_without\_gvl())
+- Close on exec flag set by default if you can use (use epoll_create1(EPOLL_CLOEXEC))
+- IO::Epoll#wait max return array size is 256 on one time (of course, overflowing and then carried next)
+
+# Fork Me !
 
 This is experimental implementation.
 I'm waiting for your idea and Pull Request !

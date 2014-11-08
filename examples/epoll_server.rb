@@ -1,6 +1,6 @@
 #! /usr/bin/env ruby
 
-require 'io/epoll'
+require 'epoll'
 require 'socket'
 
 server = TCPServer.open(4000)
@@ -14,7 +14,6 @@ response = [
   "HELLO\r\n",
 ].join("")
 
-Epoll = IO::Epoll
 ep = Epoll.create
 ep.add server, Epoll::IN
 

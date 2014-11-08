@@ -28,7 +28,7 @@ class TestIOEpoll < Test::Unit::TestCase
         throw ok
       end
     end
-    assert { instance.closed? == true }
+    assert { true == instance.closed? }
 
     assert_nothing_raised do
       IO::Epoll.create do |ep|
@@ -42,7 +42,7 @@ class TestIOEpoll < Test::Unit::TestCase
       fd = ep.fileno
       assert { "#<IO::Epoll:fd #{fd}>" == ep.inspect }
       ep.close
-      assert { "#<IO::Epoll: (closed)>" == ep.inspect }
+      assert { "#<IO::Epoll:(closed)>" == ep.inspect }
     end
   end
 
@@ -120,6 +120,11 @@ class TestIOEpoll < Test::Unit::TestCase
   end
 
   def test_size
+    ep = IO::Epoll.create
+    10000.times do
+      ep = ep.dup
+    end
+    ep.close
     IO::Epoll.create do |ep|
       io = IO.new(0, 'r')
       ep.add(io, IO::Epoll::IN)
@@ -132,7 +137,7 @@ class TestIOEpoll < Test::Unit::TestCase
   def test_close
     assert_nothing_raised do
       fileno = nil
-      10.times do
+      3.times do
         ep = IO::Epoll.create
         fileno = ep.fileno unless fileno
         assert { fileno == ep.fileno }

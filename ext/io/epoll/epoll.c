@@ -13,270 +13,83 @@ VALUE cIO_Epoll;
 VALUE cIO_Epoll_Constants;
 VALUE cIO_Epoll_Event;
 
-struct Epoll {
-  int epfd;
-  int ev_len;
-};
-
-enum {
-  EPOLL_EVENT_DATA = 0,
-  EPOLL_EVENT_EVENTS = 1
-};
-
-inline static void
-epoll_fd_close(int epfd)
-{
-  close(epfd);
-}
-
-static void
-rb_epoll_free(void *p)
-{
-  struct Epoll *ptr = p;
-  if (ptr) {
-    if (0 <= ptr->epfd) epoll_fd_close(ptr->epfd);
-    ruby_xfree(ptr);
-  }
-}
-
-static size_t
-rb_epoll_memsize(const void *p)
-{
-  const struct Epoll *ptr = p;
-  if (!ptr) return 0;
-  return sizeof(struct Epoll);
-}
-
-static const rb_data_type_t epoll_data_type = {
-  "epoll",
-  {
-    NULL,
-    rb_epoll_free,
-    rb_epoll_memsize,
-  },
-  NULL, NULL, RUBY_TYPED_FREE_IMMEDIATELY|RUBY_TYPED_WB_PROTECTED
-};
-
-void
-epoll_check_initialized(struct Epoll *ptr)
-{
-  if (!ptr) {
-    rb_raise(rb_eIOError, "uninitialized stream");
-  }
-}
-
-void
-epoll_check_closed(struct Epoll *ptr)
-{
-  epoll_check_initialized(ptr);
-  if (ptr->epfd < 0) {
-    rb_raise(rb_eIOError, "closed stream");
-  }
-}
-
-static struct Epoll*
-get_epoll(VALUE self)
-{
-  struct Epoll *ptr;
-  rb_check_frozen(self);
-  TypedData_Get_Struct(self, struct Epoll, &epoll_data_type, ptr);
-  epoll_check_initialized(ptr);
-  return ptr;
-}
-
-static VALUE
-rb_epoll_allocate(VALUE klass)
-{
-  struct Epoll *ptr;
-  return TypedData_Make_Struct(klass, struct Epoll, &epoll_data_type, ptr);
-}
-
-static VALUE
-rb_epoll_close(VALUE self)
-{
-  struct Epoll *ptr = get_epoll(self);
-  epoll_check_closed(ptr);
-  epoll_fd_close(ptr->epfd);
-  ptr->epfd = -1;
-  return Qnil;
-}
-
-static VALUE
-ensure_epoll_close(VALUE ep)
-{
-  VALUE closed = rb_check_funcall(ep, rb_intern("closed?"), 0, 0);
-  if (closed != Qundef && RTEST(closed)) return ep;
-  rb_epoll_close(ep);
-  return ep;
-}
-
-static VALUE
-rb_epoll_s_new(VALUE klass)
-{
-  VALUE ep = rb_class_new_instance(0, NULL, klass);
-
-  if (rb_block_given_p()) {
-    return rb_ensure(rb_yield, ep, ensure_epoll_close, ep);
-  }
-  return ep;
-}
-
 static VALUE
 rb_epoll_initialize(VALUE self)
 {
-  struct Epoll *ptr;
-  int epfd;
-
-  TypedData_Get_Struct(self, struct Epoll, &epoll_data_type, ptr);
-  if (ptr->epfd < 0) epoll_fd_close(ptr->epfd);
+  rb_io_t *fp;
+  int fd;
 
 #if defined(HAVE_EPOLL_CREATE1) && defined(EPOLL_CLOEXEC)
-  epfd = epoll_create1(EPOLL_CLOEXEC);
+  fd = epoll_create1(EPOLL_CLOEXEC);
+  if (fd == -1)
+    rb_sys_fail("epoll_create1(2) was failed");
 #else
-  epfd = epoll_create(1024);
+  fd = epoll_create(1024);
+  if (fd == -1)
+    rb_sys_fail("epoll_create(2) was failed");
 #endif
+  rb_update_max_fd(fd);
 
-  if (epfd == -1) {
-    rb_sys_fail("epoll_create() was failed");
-  }
-  ptr->epfd = epfd;
-  ptr->ev_len = 0;
+  MakeOpenFile(self, fp);
+  fp->fd = fd;
+  fp->mode = FMODE_READABLE|FMODE_BINMODE;
+  rb_io_ascii8bit_binmode(self);
 
   /**
-  * FIXME: I want to delete instance variable `evlist` !
+  * FIXME: I want to delete instance variable `@evlist` !
   * It's just only using for GC mark.
   * So, I don't know how to GC guard io objects.
   */
-  rb_ivar_set(self, rb_intern("evlist"), rb_ary_new());
-
+  rb_ivar_set(self, rb_intern("@evlist"), rb_ary_new());
   return self;
-}
-
-static VALUE
-rb_epoll_initialize_copy(VALUE copy, VALUE orig)
-{
-  struct Epoll *orig_ptr = get_epoll(orig);
-  struct Epoll *copy_ptr;
-  int epfd;
-
-  if (!OBJ_INIT_COPY(copy, orig)) return copy;
-
-  TypedData_Get_Struct(copy, struct Epoll, &epoll_data_type, copy_ptr);
-  epfd = dup(orig_ptr->epfd);
-  if (epfd == -1)
-    rb_sys_fail("dup() was failed");
-  copy_ptr->epfd = epfd;
-  copy_ptr->ev_len = orig_ptr->ev_len;
-  rb_ivar_set(copy, rb_intern("evlist"), rb_ivar_get(orig, rb_intern("evlist")));
-  return copy;
-}
-
-static VALUE
-rb_epoll_inspect(VALUE self)
-{
-  struct Epoll *ptr = get_epoll(self);
-  VALUE result;
-
-  if (!ptr) return rb_any_to_s(self);
-  result = rb_str_new_cstr("#<");
-  rb_str_append(result, rb_class_name(CLASS_OF(self)));
-  rb_str_cat2(result, ":");
-  if (ptr->epfd < 0)
-    rb_str_cat(result, " (closed)", 9);
-  else
-    rb_str_catf(result, "fd %d", ptr->epfd);
-  return rb_str_cat2(result, ">");
-}
-
-static VALUE
-rb_epoll_fileno(VALUE self)
-{
-  struct Epoll *ptr = get_epoll(self);
-  epoll_check_closed(ptr);
-  return INT2FIX(ptr->epfd);
-}
-
-inline static void
-rb_epoll_evlist_add(VALUE self, VALUE io)
-{
-  VALUE evlist = rb_ivar_get(self, rb_intern("evlist"));
-  rb_ary_push(evlist, io);
-  rb_ivar_set(self, rb_intern("evlist"), evlist);
-}
-
-inline static void
-rb_epoll_evlist_del(VALUE self, VALUE io)
-{
-  VALUE evlist = rb_ivar_get(self, rb_intern("evlist"));
-  rb_ary_delete(evlist, io);
-  rb_ivar_set(self, rb_intern("evlist"), evlist);
 }
 
 static VALUE
 rb_epoll_ctl(int argc, VALUE *argv, VALUE self)
 {
-  struct Epoll *ptr = get_epoll(self);
   struct epoll_event ev;
   VALUE flag;
   VALUE io;
   VALUE events;
   rb_io_t *fptr;
+  rb_io_t *fptr_io;
   int fd;
 
+  fptr = RFILE(self)->fptr;
+  rb_io_check_initialized(fptr);
+
   switch (rb_scan_args(argc, argv, "21", &flag, &io, &events)) {
-  case 2:
-    if (FIX2INT(flag) != EPOLL_CTL_DEL)
-      rb_raise(rb_eArgError, "too few argument for CTL_ADD or CTL_MOD");
+    case 2:
+      if (FIX2INT(flag) != EPOLL_CTL_DEL)
+        rb_raise(rb_eArgError, "too few argument for CTL_ADD or CTL_MOD");
     break;
-    rb_epoll_evlist_del(self, io);
-  case 3:
-    if (FIX2INT(flag) == EPOLL_CTL_ADD) {
-      rb_epoll_evlist_add(self, io);
-    }
-    else if (FIX2INT(flag) == EPOLL_CTL_MOD) {
-      /* nothing */
-    }
-    else {
-      rb_raise(rb_eArgError, "too many argument for CTL_DEL");
-    }
+    case 3:
+      if (FIX2INT(flag) == EPOLL_CTL_DEL)
+        rb_raise(rb_eArgError, "too many argument for CTL_DEL");
 
-    if ((FIX2LONG(events) & (EPOLLIN|EPOLLPRI|EPOLLRDHUP|EPOLLOUT|EPOLLET|EPOLLONESHOT)) == 0)
-      rb_raise(rb_eIOError, "undefined events");
+      if ((FIX2LONG(events) & (EPOLLIN|EPOLLPRI|EPOLLRDHUP|EPOLLOUT|EPOLLET|EPOLLONESHOT)) == 0)
+        rb_raise(rb_eIOError, "undefined events");
 
-    ev.events = FIX2LONG(events);
-    ev.data.ptr = (void*)io;
+      ev.events = FIX2LONG(events);
+      ev.data.ptr = (void*)io;
     break;
   }
 
-  GetOpenFile(rb_io_get_io(io), fptr);
-  fd = fptr->fd;
+  GetOpenFile(rb_io_get_io(io), fptr_io);
+  fd = fptr_io->fd;
 
-  if (epoll_ctl(ptr->epfd, FIX2INT(flag), fd, &ev) == -1) {
+  if (epoll_ctl(fptr->fd, FIX2INT(flag), fd, &ev) == -1) {
     char buf[128];
-    sprintf(buf, "epoll_ctl() was failed(epfd:%d, fd:%d)", ptr->epfd, fd);
+    sprintf(buf, "epoll_ctl(2) was failed(epoll fd:%d, io fd:%d)", fptr->fd, fd);
     rb_sys_fail(buf);
   }
-
-  switch (FIX2INT(flag)) {
-  case EPOLL_CTL_ADD:
-    ptr->ev_len++;
-    break;
-  case EPOLL_CTL_DEL:
-    ptr->ev_len--;
-    break;
-  case EPOLL_CTL_MOD:
-    break;
-  default:
-    break;
-  }
-
   return self;
 }
 
 struct epoll_wait_args {
-  struct Epoll *ptr;
-  struct epoll_event *evlist;
+  int fd;
   int ev_len;
+  struct epoll_event *evlist;
   int timeout;
 };
 
@@ -284,122 +97,59 @@ static void *
 rb_epoll_wait_func(void *ptr)
 {
   const struct epoll_wait_args *data = ptr;
-  return (void*)(long)epoll_wait(data->ptr->epfd, data->evlist, data->ev_len, data->timeout);
+  return (void*)(long)epoll_wait(data->fd, data->evlist, data->ev_len, data->timeout);
 }
 
 static VALUE
 rb_epoll_wait(int argc, VALUE *argv, VALUE self)
 {
-  struct Epoll *ptr = get_epoll(self);
   struct epoll_event evlist[EPOLL_WAIT_MAX_EVENTS];
   struct epoll_wait_args data;
-  int i, ready, timeout;
+  int i, ready, timeout, ev_len;
   VALUE ready_evlist;
   VALUE event;
+  rb_io_t *fptr;
+  GetOpenFile(self, fptr);
 
   switch (argc) {
-  case 0:
-    timeout = -1;
+    case 0:
+      timeout = -1;
     break;
-  case 1:
-    timeout = FIX2INT(argv[0]);
+    case 1:
+      timeout = FIX2INT(argv[0]);
     break;
-  default:
-    rb_raise(rb_eArgError, "too many argument");
+    default:
+      rb_raise(rb_eArgError, "too many argument");
     break;
   }
 
-  if (ptr->ev_len <= 0)
+  ev_len = RARRAY_LEN(rb_ivar_get(self, rb_intern("@evlist")));
+  if (ev_len <= 0)
     rb_raise(rb_eIOError, "empty interest list");
 
-  data.ptr = ptr;
+  data.fd = fptr->fd;
+  data.ev_len = ev_len < EPOLL_WAIT_MAX_EVENTS ? ev_len : EPOLL_WAIT_MAX_EVENTS;
   data.evlist = evlist;
-  data.ev_len = EPOLL_WAIT_MAX_EVENTS < ptr->ev_len ? EPOLL_WAIT_MAX_EVENTS : ptr->ev_len;
   data.timeout = timeout;
 
 RETRY:
   ready = (int)(long)rb_thread_call_without_gvl(rb_epoll_wait_func, &data, RUBY_UBF_IO, 0);
   if (ready == -1) {
-    if (errno == EINTR) {
+    if (errno == EINTR)
       goto RETRY;
-    }
-    else {
-      rb_sys_fail("epoll_wait() was failed");
-    }
+    else
+      rb_sys_fail("epoll_wait(2) was failed");
   }
 
   ready_evlist = rb_ary_new_capa(ready);
   for (i = 0; i < ready; i++) {
     event = rb_obj_alloc(cIO_Epoll_Event);
-    RSTRUCT_SET(event, EPOLL_EVENT_DATA, (VALUE) evlist[i].data.ptr);
-    RSTRUCT_SET(event, EPOLL_EVENT_EVENTS, LONG2FIX(evlist[i].events));
+    RSTRUCT_SET(event, 0, (VALUE) evlist[i].data.ptr);
+    RSTRUCT_SET(event, 1, LONG2FIX(evlist[i].events));
     rb_ary_store(ready_evlist, i, event);
   }
   return ready_evlist;
 }
-
-static VALUE
-rb_epoll_closed_p(VALUE self)
-{
-  struct Epoll *ptr = get_epoll(self);
-  return 0 <= ptr->epfd ? Qfalse : Qtrue;
-}
-
-static VALUE
-rb_epoll_size(VALUE self)
-{
-  struct Epoll *ptr = get_epoll(self);
-  return INT2FIX(ptr->ev_len);
-}
-
-#if defined(HAVE_FCNTL) && defined(F_GETFD) && defined(FD_CLOEXEC)
-
-static VALUE
-rb_epoll_close_on_exec_p(VALUE self)
-{
-  struct Epoll *ptr = get_epoll(self);
-  int ret;
-
-  epoll_check_closed(ptr);
-
-  if ((ret = fcntl(ptr->epfd, F_GETFD)) == -1)
-    rb_sys_fail("fcntl");
-
-  if (ret & FD_CLOEXEC)
-    return Qtrue;
-  else
-    return Qfalse;
-}
-
-#else
-#define rb_epoll_close_on_exec_p rb_f_notimplement
-#endif
-
-#if defined(HAVE_FCNTL) && defined(F_GETFD) && defined(F_SETFD) && defined(FD_CLOEXEC)
-
-static VALUE
-rb_epoll_set_close_on_exec(VALUE self, VALUE b)
-{
-  struct Epoll *ptr = get_epoll(self);
-  int flag = RTEST(b) ? FD_CLOEXEC : 0;
-  int ret;
-
-  epoll_check_closed(ptr);
-
-  if ((ret = fcntl(ptr->epfd, F_GETFD)) == -1)
-    rb_sys_fail("fcntl");
-
-  if ((ret & FD_CLOEXEC) != flag) {
-    ret = (ret & ~FD_CLOEXEC) | flag;
-    if (fcntl(ptr->epfd, F_SETFD, ret) == -1)
-      rb_sys_fail("fcntl");
-  }
-  return Qnil;
-}
-
-#else
-#define rb_epoll_set_close_on_exec rb_f_notimplement
-#endif
 
 #endif // HAVE_SYS_EPOLL_H
 
@@ -407,20 +157,10 @@ void
 Init_epoll()
 {
 #ifdef HAVE_SYS_EPOLL_H
-  cIO_Epoll = rb_define_class_under(rb_cIO, "Epoll", rb_cObject);
-  rb_define_alloc_func(cIO_Epoll, rb_epoll_allocate);
-  rb_define_singleton_method(cIO_Epoll, "new", rb_epoll_s_new, 0);
+  cIO_Epoll = rb_define_class_under(rb_cIO, "Epoll", rb_cIO);
   rb_define_method(cIO_Epoll, "initialize", rb_epoll_initialize, 0);
-  rb_define_method(cIO_Epoll, "initialize_copy", rb_epoll_initialize_copy, 1);
-  rb_define_method(cIO_Epoll, "inspect", rb_epoll_inspect, 0);
   rb_define_method(cIO_Epoll, "ctl", rb_epoll_ctl, -1);
   rb_define_method(cIO_Epoll, "wait", rb_epoll_wait, -1);
-  rb_define_method(cIO_Epoll, "fileno", rb_epoll_fileno, 0);
-  rb_define_method(cIO_Epoll, "close", rb_epoll_close, 0);
-  rb_define_method(cIO_Epoll, "closed?", rb_epoll_closed_p, 0);
-  rb_define_method(cIO_Epoll, "size", rb_epoll_size, 0);
-  rb_define_method(cIO_Epoll, "close_on_exec?", rb_epoll_close_on_exec_p, 0);
-  rb_define_method(cIO_Epoll, "close_on_exec=", rb_epoll_set_close_on_exec, 1);
 
   cIO_Epoll_Constants = rb_define_module_under(cIO_Epoll, "Constants");
   rb_define_const(cIO_Epoll_Constants, "IN", INT2FIX(EPOLLIN));
@@ -434,6 +174,7 @@ Init_epoll()
   rb_define_const(cIO_Epoll_Constants, "CTL_ADD", INT2FIX(EPOLL_CTL_ADD));
   rb_define_const(cIO_Epoll_Constants, "CTL_MOD", INT2FIX(EPOLL_CTL_MOD));
   rb_define_const(cIO_Epoll_Constants, "CTL_DEL", INT2FIX(EPOLL_CTL_DEL));
+  rb_define_const(cIO_Epoll_Constants, "EPOLL_CLOEXEC", INT2FIX(EPOLL_CLOEXEC));
 
   cIO_Epoll_Event = rb_struct_define_under(cIO_Epoll, "Event", "data", "events", NULL);
 #endif

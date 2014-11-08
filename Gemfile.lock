@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    io-epoll (0.2.0)
+    epoll (0.2.0)
 
 GEM
   remote: https://rubygems.org/
@@ -18,7 +18,7 @@ PLATFORMS
 
 DEPENDENCIES
   bundler
-  io-epoll!
+  epoll!
   rake
   rake-compiler
   test-unit

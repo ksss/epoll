@@ -120,11 +120,6 @@ class TestIOEpoll < Test::Unit::TestCase
   end
 
   def test_size
-    ep = Epoll.create
-    10000.times do
-      ep = ep.dup
-    end
-    ep.close
     Epoll.create do |ep|
       io = IO.new(0, 'r')
       ep.add(io, Epoll::IN)
@@ -137,7 +132,7 @@ class TestIOEpoll < Test::Unit::TestCase
   def test_close
     assert_nothing_raised do
       fileno = nil
-      3.times do
+      10.times do
         ep = Epoll.create
         fileno = ep.fileno unless fileno
         assert { fileno == ep.fileno }

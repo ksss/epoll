@@ -3,7 +3,7 @@ epoll
 
 [![Build Status](https://travis-ci.org/ksss/epoll.svg?branch=master)](https://travis-ci.org/ksss/epoll)
 
-An experimental binding of epoll(7).
+A binding of epoll(7) on Ruby.
 
 **epoll(7)** can use Linux only. (because must be installed sys/epoll.h)
 
@@ -16,9 +16,9 @@ require 'epoll'
 
 # Epoll.create
 #   call epoll_create(2)
-#   it's just alias of `IO.open`
+#   it's just alias of `open`
 #   Epoll object stock a File Descriptor returned by epoll_create(2)
-#   return: instance of Epoll
+#   return: instance of Epoll (kind of IO)
 epoll = Epoll.create
 
 # IO object add to interest list
@@ -63,7 +63,7 @@ epoll.close #=> nil
 # and you can check closed
 epoll.closed? #=> true
 
-# and very useful way is that call `create` (or `new`) with block like Ruby IO.open
+# and very useful way is that call `create` with block like `IO.open`
 # return: block result
 Epoll.create do |epoll|
   # ensure automatic call `epoll.close` when out block

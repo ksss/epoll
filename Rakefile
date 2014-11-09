@@ -4,8 +4,7 @@ require 'rake/testtask'
 
 task :default => [:compile, :test]
 
-Rake::ExtensionTask.new('epoll') do |ext|
-  ext.name = 'epoll'
+Rake::ExtensionTask.new('core') do |ext|
   ext.ext_dir = 'ext/epoll'
   ext.lib_dir = 'lib/epoll'
 end

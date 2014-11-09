@@ -36,9 +36,8 @@ rb_epoll_initialize(VALUE self)
   rb_io_ascii8bit_binmode(self);
 
   /**
-  * FIXME: I want to delete instance variable `@evlist` !
-  * It's just only using for GC mark.
-  * So, I don't know how to GC guard io objects.
+  * It's also using GC mark.
+  * So, I don't know other way how to GC guard io objects.
   */
   rb_ivar_set(self, rb_intern("@evlist"), rb_ary_new());
   return self;
@@ -51,6 +50,7 @@ rb_epoll_ctl(int argc, VALUE *argv, VALUE self)
   VALUE flag;
   VALUE io;
   VALUE events;
+  VALUE evlist;
   rb_io_t *fptr;
   rb_io_t *fptr_io;
   int fd;
@@ -83,6 +83,20 @@ rb_epoll_ctl(int argc, VALUE *argv, VALUE self)
     sprintf(buf, "epoll_ctl(2) was failed(epoll fd:%d, io fd:%d)", fptr->fd, fd);
     rb_sys_fail(buf);
   }
+
+  switch (FIX2INT(flag)) {
+    case EPOLL_CTL_ADD:
+      evlist = rb_ivar_get(self, rb_intern("@evlist"));
+      rb_ary_push(evlist, io);
+      rb_ivar_set(self, rb_intern("@evlist"), evlist);
+    break;
+    case EPOLL_CTL_DEL:
+      evlist = rb_ivar_get(self, rb_intern("@evlist"));
+      rb_ary_delete(evlist, io);
+      rb_ivar_set(self, rb_intern("@evlist"), evlist);
+    break;
+  }
+
   return self;
 }
 
@@ -154,7 +168,7 @@ RETRY:
 #endif // HAVE_SYS_EPOLL_H
 
 void
-Init_epoll()
+Init_core()
 {
 #ifdef HAVE_SYS_EPOLL_H
   cEpoll = rb_define_class("Epoll", rb_cIO);

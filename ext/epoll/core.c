@@ -188,7 +188,6 @@ Init_core()
   rb_define_const(cEpoll_Constants, "CTL_ADD", INT2FIX(EPOLL_CTL_ADD));
   rb_define_const(cEpoll_Constants, "CTL_MOD", INT2FIX(EPOLL_CTL_MOD));
   rb_define_const(cEpoll_Constants, "CTL_DEL", INT2FIX(EPOLL_CTL_DEL));
-  rb_define_const(cEpoll_Constants, "EPOLL_CLOEXEC", INT2FIX(EPOLL_CLOEXEC));
 
   cEpoll_Event = rb_struct_define_under(cEpoll, "Event", "data", "events", NULL);
 #endif

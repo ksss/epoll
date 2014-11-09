@@ -96,14 +96,19 @@ class TestIOEpoll < Test::Unit::TestCase
 
   def test_wait
     Epoll.create do |ep|
-      io = IO.new(1, 'w')
-      ep.add(io, Epoll::IN|Epoll::PRI|Epoll::RDHUP|Epoll::ET|Epoll::OUT)
-      evlist = ep.wait
-      assert { [Epoll::Event.new(io, Epoll::OUT)] == evlist }
-      assert_instance_of(IO, evlist[0].data)
-      assert_instance_of(Fixnum, evlist[0].events)
-      assert_raise(TypeError) { ep.wait(nil) }
-      assert_raise(IOError) { Epoll.create.wait }
+      IO.pipe do |r, w|
+        ep.add(r, Epoll::IN|Epoll::ET)
+        ep.add(w, Epoll::OUT|Epoll::ET)
+        evlist = ep.wait
+        assert { [Epoll::Event.new(w, Epoll::OUT)] == evlist }
+        assert_instance_of(IO, evlist[0].data)
+        assert_instance_of(Fixnum, evlist[0].events)
+
+        w.write('ok')
+        assert { [Epoll::Event.new(r, Epoll::IN)] == ep.wait }
+
+        assert_raise(IOError) { Epoll.create.wait }
+      end
     end
   end
 
@@ -116,16 +121,22 @@ class TestIOEpoll < Test::Unit::TestCase
       assert_raise(TimeoutError) do
         timeout(0.01) { ep.wait(-1) }
       end
+      assert_raise(TypeError) { ep.wait(nil) }
     end
   end
 
   def test_size
     Epoll.create do |ep|
-      io = IO.new(0, 'r')
-      ep.add(io, Epoll::IN)
-      assert { 1 == ep.size }
-      ep.del(io)
-      assert { 0 == ep.size }
+      IO.pipe do |r, w|
+        ep.add(r, Epoll::IN)
+        assert { 1 == ep.size }
+        ep.add(w, Epoll::OUT)
+        assert { 2 == ep.size }
+        ep.del(w)
+        assert { 1 == ep.size }
+        ep.del(r)
+        assert { 0 == ep.size }
+      end
     end
   end
 
@@ -142,41 +153,51 @@ class TestIOEpoll < Test::Unit::TestCase
         end
       end
     end
+
+    ep = Epoll.create
+    ep.close
+    assert_raise(IOError){ ep.close }
   end
 
   def test_closed?
     ep = Epoll.create
     assert { false == ep.closed? }
-    assert { nil == ep.close }
-    assert_raise(IOError){ ep.close }
+    ep.close
     assert { true == ep.closed? }
   end
 
   def test_dup
     Epoll.create do |ep|
-      io = IO.new(1, 'w')
-      ep.add(io, Epoll::OUT)
-      dup = ep.dup
-      assert { ep != dup }
-      assert { ep.fileno != dup.fileno }
-      assert { ep.size == dup.size }
-      assert { [Epoll::Event.new(io, Epoll::OUT)] == dup.wait }
+      IO.pipe do |r, w|
+        ep.add(r, Epoll::IN|Epoll::ET)
+        ep.add(w, Epoll::OUT|Epoll::ET)
+        dup = ep.dup
+        assert { ep != dup }
+        assert { ep.fileno != dup.fileno }
+        assert { 2 == dup.size }
+        assert { [Epoll::Event.new(w, Epoll::OUT)] == dup.wait }
+        w.write 'ok'
+        assert { [Epoll::Event.new(r, Epoll::IN)] == dup.wait }
+      end
     end
   end
 
   def test_close_on_exec
-    return unless defined? Fcntl::FD_CLOEXEC
-    Epoll.create do |ep|
-      assert { true == ep.close_on_exec? }
-      ep.close_on_exec = false
-      assert { false == ep.close_on_exec? }
-      ep.close_on_exec = true
-      assert { true == ep.close_on_exec? }
-      ep.close_on_exec = false
-      assert { false == ep.close_on_exec? }
-      ep.close
-      assert_raise { ep.close_on_exec = true }
-      assert_raise { ep.close_on_exec? }
+    if defined? Fcntl::FD_CLOEXEC
+      Epoll.create do |ep|
+        assert { true == ep.close_on_exec? }
+        ep.close_on_exec = false
+        assert { false == ep.close_on_exec? }
+        ep.close_on_exec = true
+        assert { true == ep.close_on_exec? }
+        ep.close_on_exec = false
+        assert { false == ep.close_on_exec? }
+        ep.close
+        assert_raise { ep.close_on_exec = true }
+        assert_raise { ep.close_on_exec? }
+      end
+    else
+      pend "Fcntl::FD_CLOEXEC undefined"
     end
   end
 

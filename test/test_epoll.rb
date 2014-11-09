@@ -97,15 +97,13 @@ class TestIOEpoll < Test::Unit::TestCase
   def test_wait
     Epoll.create do |ep|
       IO.pipe do |r, w|
-        ep.add(r, Epoll::IN|Epoll::ET)
-        ep.add(w, Epoll::OUT|Epoll::ET)
+        ep.add(r, Epoll::IN)
+        ep.add(w, Epoll::OUT)
         evlist = ep.wait
         assert { [Epoll::Event.new(w, Epoll::OUT)] == evlist }
-        assert_instance_of(IO, evlist[0].data)
-        assert_instance_of(Fixnum, evlist[0].events)
 
         w.write('ok')
-        assert { [Epoll::Event.new(r, Epoll::IN)] == ep.wait }
+        assert { 2 == ep.wait.length }
 
         assert_raise(IOError) { Epoll.create.wait }
       end
@@ -169,15 +167,15 @@ class TestIOEpoll < Test::Unit::TestCase
   def test_dup
     Epoll.create do |ep|
       IO.pipe do |r, w|
-        ep.add(r, Epoll::IN|Epoll::ET)
-        ep.add(w, Epoll::OUT|Epoll::ET)
+        ep.add(r, Epoll::IN)
+        ep.add(w, Epoll::OUT)
         dup = ep.dup
         assert { ep != dup }
         assert { ep.fileno != dup.fileno }
         assert { 2 == dup.size }
-        assert { [Epoll::Event.new(w, Epoll::OUT)] == dup.wait }
+        assert { 1 == dup.wait.length }
         w.write 'ok'
-        assert { [Epoll::Event.new(r, Epoll::IN)] == dup.wait }
+        assert { 2 == dup.wait.length }
       end
     end
   end

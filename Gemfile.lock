@@ -6,8 +6,8 @@ PATH
 GEM
   remote: https://rubygems.org/
   specs:
-    power_assert (0.2.1)
-    rake (10.3.2)
+    power_assert (0.2.2)
+    rake (10.4.0)
     rake-compiler (0.9.3)
       rake
     test-unit (3.0.7)

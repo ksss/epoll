@@ -35,11 +35,6 @@ rb_epoll_initialize(VALUE self)
   fp->mode = FMODE_READABLE|FMODE_BINMODE;
   rb_io_ascii8bit_binmode(self);
 
-  /**
-  * It's also using GC mark.
-  * So, I don't know other way how to GC guard io objects.
-  */
-  rb_ivar_set(self, rb_intern("@evlist"), rb_ary_new());
   return self;
 }
 
@@ -50,7 +45,6 @@ rb_epoll_ctl(int argc, VALUE *argv, VALUE self)
   VALUE flag;
   VALUE io;
   VALUE events;
-  VALUE evlist;
   rb_io_t *fptr;
   rb_io_t *fptr_io;
   int fd;
@@ -71,12 +65,12 @@ rb_epoll_ctl(int argc, VALUE *argv, VALUE self)
         rb_raise(rb_eIOError, "undefined events");
 
       ev.events = FIX2LONG(events);
-      ev.data.ptr = (void*)io;
     break;
   }
 
   GetOpenFile(rb_io_get_io(io), fptr_io);
   fd = fptr_io->fd;
+  ev.data.fd = fd;
 
   if (epoll_ctl(fptr->fd, FIX2INT(flag), fd, &ev) == -1) {
     char buf[128];
@@ -84,25 +78,11 @@ rb_epoll_ctl(int argc, VALUE *argv, VALUE self)
     rb_sys_fail(buf);
   }
 
-  switch (FIX2INT(flag)) {
-    case EPOLL_CTL_ADD:
-      evlist = rb_ivar_get(self, rb_intern("@evlist"));
-      rb_ary_push(evlist, io);
-      rb_ivar_set(self, rb_intern("@evlist"), evlist);
-    break;
-    case EPOLL_CTL_DEL:
-      evlist = rb_ivar_get(self, rb_intern("@evlist"));
-      rb_ary_delete(evlist, io);
-      rb_ivar_set(self, rb_intern("@evlist"), evlist);
-    break;
-  }
-
   return self;
 }
 
 struct epoll_wait_args {
   int fd;
-  int ev_len;
   struct epoll_event *evlist;
   int timeout;
 };
@@ -110,16 +90,16 @@ struct epoll_wait_args {
 static void *
 rb_epoll_wait_func(void *ptr)
 {
-  const struct epoll_wait_args *data = ptr;
-  return (void*)(long)epoll_wait(data->fd, data->evlist, data->ev_len, data->timeout);
+  const struct epoll_wait_args *args = ptr;
+  return (void*)(long)epoll_wait(args->fd, args->evlist, EPOLL_WAIT_MAX_EVENTS, args->timeout);
 }
 
 static VALUE
 rb_epoll_wait(int argc, VALUE *argv, VALUE self)
 {
   struct epoll_event evlist[EPOLL_WAIT_MAX_EVENTS];
-  struct epoll_wait_args data;
-  int i, ready, timeout, ev_len;
+  struct epoll_wait_args args;
+  int i, ready, timeout;
   VALUE ready_evlist;
   VALUE event;
   rb_io_t *fptr;
@@ -137,28 +117,23 @@ rb_epoll_wait(int argc, VALUE *argv, VALUE self)
     break;
   }
 
-  ev_len = RARRAY_LEN(rb_ivar_get(self, rb_intern("@evlist")));
-  if (ev_len <= 0)
-    rb_raise(rb_eIOError, "empty interest list");
-
-  data.fd = fptr->fd;
-  data.ev_len = ev_len < EPOLL_WAIT_MAX_EVENTS ? ev_len : EPOLL_WAIT_MAX_EVENTS;
-  data.evlist = evlist;
-  data.timeout = timeout;
+  args.fd = fptr->fd;
+  args.evlist = evlist;
+  args.timeout = timeout;
 
 RETRY:
-  ready = (int)(long)rb_thread_call_without_gvl(rb_epoll_wait_func, &data, RUBY_UBF_IO, 0);
+  ready = (int)(long)rb_thread_call_without_gvl(rb_epoll_wait_func, &args, RUBY_UBF_IO, 0);
   if (ready == -1) {
     if (errno == EINTR)
       goto RETRY;
     else
-      rb_sys_fail("epoll_wait(2) was failed");
+      rb_sys_fail("epoll_wait");
   }
 
   ready_evlist = rb_ary_new_capa(ready);
   for (i = 0; i < ready; i++) {
     event = rb_obj_alloc(cEpoll_Event);
-    RSTRUCT_SET(event, 0, (VALUE) evlist[i].data.ptr);
+    RSTRUCT_SET(event, 0, INT2FIX(evlist[i].data.fd));
     RSTRUCT_SET(event, 1, LONG2FIX(evlist[i].events));
     rb_ary_store(ready_evlist, i, event);
   }
@@ -189,6 +164,6 @@ Init_core()
   rb_define_const(cEpoll_Constants, "CTL_MOD", INT2FIX(EPOLL_CTL_MOD));
   rb_define_const(cEpoll_Constants, "CTL_DEL", INT2FIX(EPOLL_CTL_DEL));
 
-  cEpoll_Event = rb_struct_define_under(cEpoll, "Event", "data", "events", NULL);
+  cEpoll_Event = rb_struct_define_under(cEpoll, "Event", "fileno", "events", NULL);
 #endif
 }

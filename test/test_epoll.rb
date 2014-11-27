@@ -56,7 +56,7 @@ class TestIOEpoll < Test::Unit::TestCase
   def test_ctl
     Epoll.create do |ep|
       io = IO.new(1, 'w')
-      assert { ep == ep.ctl(Epoll::CTL_ADD, io , Epoll::OUT) }
+      assert { ep == ep.ctl(Epoll::CTL_ADD, io, Epoll::OUT) }
       assert_raise(ArgumentError) { ep.ctl }
       assert_raise(ArgumentError) { ep.ctl(Epoll::CTL_ADD) }
       assert_raise(ArgumentError) { ep.ctl(Epoll::CTL_ADD, io) }
@@ -100,12 +100,10 @@ class TestIOEpoll < Test::Unit::TestCase
         ep.add(r, Epoll::IN)
         ep.add(w, Epoll::OUT)
         evlist = ep.wait
-        assert { [Epoll::Event.new(w, Epoll::OUT)] == evlist }
+        assert { [Epoll::Event.new(w.fileno, Epoll::OUT)] == evlist }
 
         w.write('ok')
         assert { 2 == ep.wait.length }
-
-        assert_raise(IOError) { Epoll.create.wait }
       end
     end
   end
@@ -120,21 +118,6 @@ class TestIOEpoll < Test::Unit::TestCase
         timeout(0.01) { ep.wait(-1) }
       end
       assert_raise(TypeError) { ep.wait(nil) }
-    end
-  end
-
-  def test_size
-    Epoll.create do |ep|
-      IO.pipe do |r, w|
-        ep.add(r, Epoll::IN)
-        assert { 1 == ep.size }
-        ep.add(w, Epoll::OUT)
-        assert { 2 == ep.size }
-        ep.del(w)
-        assert { 1 == ep.size }
-        ep.del(r)
-        assert { 0 == ep.size }
-      end
     end
   end
 
@@ -172,7 +155,6 @@ class TestIOEpoll < Test::Unit::TestCase
         dup = ep.dup
         assert { ep != dup }
         assert { ep.fileno != dup.fileno }
-        assert { 2 == dup.size }
         assert { 1 == dup.wait.length }
         w.write 'ok'
         assert { 2 == dup.wait.length }
@@ -207,7 +189,7 @@ class TestIOEpoll < Test::Unit::TestCase
       Thread.start {
         ret = ep.wait
       }.join
-      assert { io == ret[0].data }
+      assert { io.fileno == ret[0].fileno }
     end
   end
 end

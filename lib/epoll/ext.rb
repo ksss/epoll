@@ -1,23 +1,16 @@
 class Epoll
-  attr_accessor :evlist
-
   include Epoll::Constants
 
   class << self
     alias create open
   end
 
-  def size
-    @evlist.size
-  end
-  alias length size
-
-  def add(io, events)
-    ctl CTL_ADD, io, events
+  def add(io, ev)
+    ctl CTL_ADD, io, ev
   end
 
-  def mod(io, events)
-    ctl CTL_MOD, io, events
+  def mod(io, ev)
+    ctl CTL_MOD, io, ev
   end
 
   def del(io)

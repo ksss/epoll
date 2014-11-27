@@ -22,21 +22,23 @@ Signal.trap(:INT) {
   server.close
 }
 
+io_map = {}
 loop do
   ep.wait.each do |ev|
-    data = ev.data
+    io = io_map[ev.fileno]
     events = ev.events
 
-    if data == server
+    if ev.fileno == server.fileno
       socket = server.accept
+      io_map[socket.fileno] = socket
       ep.add socket, Epoll::IN|Epoll::ET
     elsif (events & Epoll::IN) != 0
-      data.recv(1024)
-      ep.mod data, Epoll::OUT|Epoll::ET
+      io.recv(1024)
+      ep.mod io, Epoll::OUT|Epoll::ET
     elsif (events & Epoll::OUT) != 0
-      data.puts response
-      ep.del data
-      data.close
+      io.puts response
+      ep.del io
+      io.close
     elsif (events & (Epoll::HUP|Epoll::ERR)) != 0
       p "Epoll::HUP|Epoll::ERR"
     else

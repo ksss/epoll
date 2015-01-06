@@ -8,9 +8,9 @@ GEM
   specs:
     power_assert (0.2.2)
     rake (10.4.2)
-    rake-compiler (0.9.4)
+    rake-compiler (0.9.5)
       rake
-    test-unit (3.0.8)
+    test-unit (3.0.9)
       power_assert
 
 PLATFORMS

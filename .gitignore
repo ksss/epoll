@@ -5,3 +5,4 @@
 *.o
 tmp
 pkg
+Gemfile.lock
